@@ -716,7 +716,7 @@ struct Camera : ICamera {
 
         fov   = firstPerson ? 90.0f : 65.0f;
         znear = firstPerson ? 16.0f : 32.0f;
-        zfar  = 45.0f * 1024.0f;
+        zfar  = 9.0f * 1024.0f;
 
         #ifdef _OS_PSP
             znear = 256.0f;

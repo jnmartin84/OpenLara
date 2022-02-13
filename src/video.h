@@ -5,9 +5,9 @@
 #include "texture.h"
 #include "sound.h"
 
-#ifdef _OS_TNS
+//#ifdef _OS_TNS
     #define NO_VIDEO
-#endif
+//#endif
 
 struct AC_ENTRY {
     uint8 code;
@@ -260,9 +260,9 @@ struct Video {
 
             nextChunk(0, 0);
 
-        #ifdef NO_SOUND
+//        #ifdef NO_SOUND
             audioDecoder = NULL;
-        #else
+/*        #else
             if (sfmt == 1)
                 audioDecoder = new Sound::PCM(NULL, channels, rate, 0x7FFFFF, bps);      // TR2
             else if (sfmt == 101) {
@@ -271,7 +271,7 @@ struct Video {
                 else
                     audioDecoder = new Sound::IMA(NULL, channels, rate);          // TR3
             }
-        #endif
+        #endif*/
         }
 
         virtual ~Escape() {

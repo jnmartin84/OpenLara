@@ -4,39 +4,24 @@
 #include <stdlib.h>
 #include <math.h>
 #include <float.h>
+#include <unistd.h>
+extern "C" {
+extern void __n64_memcpy_ASM(void* d, const void* s, size_t c);
+extern void __n64_memset_ASM(void* d, char s, size_t c);
+#define memcpy __n64_memcpy_ASM
+#define memset __n64_memset_ASM
+}
 
 //#define TEST_SLOW_FIO
-
+#define _DEBUG
 #ifdef _DEBUG
-    #if defined(_OS_WP8)
-        #define debugBreak() /* TODO */
-    #elif defined(_OS_LINUX) || defined(_OS_RPI) || defined(_OS_CLOVER)
-        #define debugBreak() raise(SIGTRAP);
-    #elif defined(_OS_3DS)
-        #define debugBreak() svcBreak(USERBREAK_ASSERT); 
-    #else
-        #define debugBreak() _asm { int 3 }
-    #endif
+    #define debugBreak() while(1) {}
 
     #define ASSERT(expr) if (!(expr)) { LOG("ASSERT:\n  %s:%d\n  %s => %s\n", __FILE__, __LINE__, __FUNCTION__, #expr); debugBreak(); }
     #define ASSERTV(expr) ASSERT(expr)
 
     #ifndef _OS_ANDROID
         #define LOG printf
-    #endif
-
-    #if defined(_OS_XBOX) || defined(_OS_XB1) || defined(_OS_WP8)
-        #define MAX_LOG_LENGTH 1024
-
-        #undef LOG
-        void LOG(const char *format, ...) {
-            char str[MAX_LOG_LENGTH];
-            va_list arglist;
-            va_start(arglist, format);
-            _vsnprintf(str, MAX_LOG_LENGTH, format, arglist);
-            va_end(arglist);
-            OutputDebugStringA(str);
-        }
     #endif
 
 #else
@@ -104,6 +89,7 @@
 
 #define SQR(x)  ((x)*(x))
 #define randf() (float(rand())/float(RAND_MAX))
+
 
 typedef signed char        int8;
 typedef signed short       int16;
@@ -646,6 +632,28 @@ struct mat4 {
           e02, e12, e22, e32,
           e03, e13, e23, e33;
 
+    float operator [] (int index) {
+		switch (index) {
+			case 0: return e00;
+			case 1: return e10;
+			case 2: return e20;
+			case 3: return e30;
+			case 4: return e01;
+			case 5: return e11;
+			case 6: return e21;
+			case 7: return e31;
+			case 8: return e02;
+			case 9: return e12;
+			case 10: return e22;
+			case 11: return e32;
+			case 12: return e03;
+			case 13: return e13;
+			case 14: return e23;
+			case 15: return e33;
+			default: return 0;
+		}
+	}
+		  
     vec4& right()  const { return *((vec4*)&e00); }
     vec4& up()     const { return *((vec4*)&e01); }
     vec4& dir()    const { return *((vec4*)&e02); }
@@ -1689,7 +1697,8 @@ char cacheDir[255];
 char saveDir[255];
 char contentDir[255];
 
-#define STREAM_BUFFER_SIZE (16 * 1024)
+#define STREAM_BUFFER_SIZE (16*1024)
+//(16 * 1024)
 
 #define MAX_PACKS 32
 
@@ -1698,7 +1707,8 @@ struct Stream {
     Callback    *callback;
     void        *userData;
 
-    FILE        *f;
+//    FILE        *f;
+	int fd;
     char        *data;
     char        *name;
     int         size, pos, fpos;
@@ -1850,12 +1860,6 @@ struct Stream {
     }
 
 private:
-#ifdef _OS_3DS
-    static void streamThread(void *arg) {
-        Stream* stream = (Stream*)arg;
-        stream->openFile();
-    }
-#endif
 
     void openFile() {
         char path[255];
@@ -1867,24 +1871,19 @@ private:
         strcat(path, name);
         fixBackslash(path);
 
-        f = fopen(path, "rb");
-
-        if (!f) {
-            #ifdef _OS_WEB
-                osDownload(this);
-            #else
-                LOG("error loading file \"%s\"\n", name);
-                if (callback) {
-                    callback(NULL, userData);
-                    delete this;
-                } else {
-                    ASSERT(false);
-                }
-            #endif
+		printf("Stream request to open: %s\n", path);
+		
+		fd = dfs_open(path);
+        if (fd < 0) {
+            LOG("error loading file \"%s\" %d\n", name, fd);
+            if (callback) {
+                callback(NULL, userData);
+                delete this;
+            } else {
+                ASSERT(false);
+            }
         } else {
-            fseek(f, 0, SEEK_END);
-            size = (int32)ftell(f);
-            fseek(f, 0, SEEK_SET);
+            size = dfs_size(fd);
 
             fpos = 0;
             bufferIndex = -1;
@@ -1894,11 +1893,11 @@ private:
     }
 public:
 
-    Stream(const char *name, const void *data, int size, Callback *callback = NULL, void *userData = NULL) : callback(callback), userData(userData), f(NULL), data((char*)data), name(NULL), size(size), pos(0), buffer(NULL) {
+    Stream(const char *name, const void *data, int size, Callback *callback = NULL, void *userData = NULL) : callback(callback), userData(userData), fd(-1), data((char*)data), name(NULL), size(size), pos(0), buffer(NULL) {
         this->name = StrUtils::copy(name);
     }
 
-    Stream(const char *name, Callback *callback = NULL, void *userData = NULL) : callback(callback), userData(userData), f(NULL), data(NULL), name(NULL), size(-1), pos(0), buffer(NULL), buffering(true), baseOffset(0) {
+    Stream(const char *name, Callback *callback = NULL, void *userData = NULL) : callback(callback), userData(userData), fd(-1), data(NULL), name(NULL), size(-1), pos(0), buffer(NULL), buffering(true), baseOffset(0) {
         if (!name && callback) {
             callback(NULL, userData);
             delete this;
@@ -1909,7 +1908,7 @@ public:
             ASSERT(false);
         }
 
-        Stream::Pack::FileInfo info;
+/*        Stream::Pack::FileInfo info;
 
         char path[256];
 
@@ -1926,14 +1925,14 @@ public:
                 strcat(path, packs[i]->stream->name);
                 fixBackslash(path);
 
-                f = fopen(path, "rb");
-                if (!f) {
+                fd = dfs_open(path);
+                if (fd == -1) {
                     LOG("error loading file from pack \"%s -> %s\"\n", packs[i]->stream->name, name);
                     ASSERT(false);
                     return;
                 }
                 baseOffset = info.offset;
-                fseek(f, info.offset, SEEK_SET);
+                dfs_seek(fd, info.offset, 0);
                 size = info.size;
 
                 fpos = 0;
@@ -1943,18 +1942,9 @@ public:
                 if (callback) callback(this, userData);
                 return;
             }
-        }
+        }*/
 
         this->name = StrUtils::copy(name);
-
-    #ifdef _OS_3DS /* TODO
-        if (callback) {
-            s32 priority = 0;
-            svcGetThreadPriority(&priority, CUR_THREAD_HANDLE);
-            threadCreate(streamThread, this, 64 * 1024, priority - 1, -2, false);
-            return;
-        }*/
-    #endif
 
         openFile();
     }
@@ -1962,7 +1952,7 @@ public:
     ~Stream() {
         delete[] name;
         delete[] buffer;
-        if (f) fclose(f);
+        if (fd > -1) dfs_close(fd);
     }
 
 #if _OS_3DS
@@ -2085,9 +2075,9 @@ public:
     }
 
     static bool exists(const char *name) {
-        FILE *f = fopen(name, "rb");
-        if (!f) return false;
-        fclose(f);
+        int fd = dfs_open(name);
+        if (fd == -1) return false;
+        dfs_close(fd);
         return true;
     }
 
@@ -2126,17 +2116,29 @@ public:
     }
 
     void raw(void *data, int count) {
-        if (!count) return;
+		int tmp_rv;
 
-        if (f) {
+		if (!count) return;
+
+        if (fd > -1) {
 
             if (!buffering) {
                 if (fpos != pos) {
-                    fseek(f, baseOffset + pos, SEEK_SET);
-                    fpos = pos;
+                    tmp_rv = 
+					dfs_seek(fd, baseOffset + pos, SEEK_SET);
+                    if (tmp_rv < 0) {
+						printf("error first seek in raw\n");
+						while(1) {}
+					}
+					fpos = pos;
                 }
-                fread(data, 1, count, f);
-                pos += count;
+                tmp_rv = 
+				dfs_read(data, 1, count, fd);
+                if (tmp_rv != count) {
+					printf("error first read %d(%d) bytes in raw\n", tmp_rv, count);
+					while(1) {}
+				}
+				pos += count;
                 fpos += count;
                 return;
             }
@@ -2155,7 +2157,7 @@ public:
                     if (fpos == pos) {
                         part = min(count / STREAM_BUFFER_SIZE * STREAM_BUFFER_SIZE, size - fpos);
                         if (part > STREAM_BUFFER_SIZE) {
-                            readed = (int)fread(ptr, 1, part, f);
+                            readed = (int)dfs_read(ptr, 1, part, fd);
 
                             #ifdef TEST_SLOW_FIO
                                 LOG("%s read %d + %d\n", name, fpos, readed);
@@ -2179,7 +2181,12 @@ public:
 
                     if (fpos != bufferIndex * STREAM_BUFFER_SIZE) {
                         fpos = bufferIndex * STREAM_BUFFER_SIZE;
-                        fseek(f, baseOffset + fpos, SEEK_SET);
+                        tmp_rv = 
+						dfs_seek(fd, baseOffset + fpos, SEEK_SET);
+						if (tmp_rv < 0) {
+							printf("error %d in second seek raw\n", tmp_rv);
+							while(1) {}
+						}
 
                         #ifdef TEST_SLOW_FIO
                             LOG("%s seek %d\n", name, fpos);
@@ -2192,7 +2199,7 @@ public:
                     }
 
                     part   = min(STREAM_BUFFER_SIZE, size - fpos);
-                    readed = (int)fread(buffer, 1, part, f);
+                    readed = (int)dfs_read(buffer, 1, part, fd);
 
                     #ifdef TEST_SLOW_FIO
                         LOG("%s read %d + %d\n", name, fpos, readed);
@@ -2203,17 +2210,23 @@ public:
                     fpos += readed;
                 }
 
-                ASSERT(buffer);
+                //ASSERT(buffer);
 
                 int bPos   = pos % STREAM_BUFFER_SIZE;
                 int delta  = min(STREAM_BUFFER_SIZE - bPos, count);
 
+				//ASSERT(ptr);
+				//ASSERT(buffer);
+				//ASSERT(buffer + bPos);
                 memcpy(ptr, buffer + bPos, delta);
                 count -= delta;
                 pos   += delta;
                 ptr   += delta;
             }
         } else {
+			//ASSERT(data);
+			//ASSERT(this->data);
+			//ASSERT(this->data + pos);
             memcpy(data, this->data + pos, count);
             pos += count;
         }
@@ -2221,7 +2234,7 @@ public:
 
     template <typename T>
     inline T& read(T &x) {
-        raw(&x, sizeof(x));
+		raw(&x, sizeof(x));
         return x;
     }
 
@@ -2268,6 +2281,37 @@ public:
 
 Stream::Pack* Stream::packs[MAX_PACKS];
 Array<char*> Stream::fileList;
+
+void osDataWrite(Stream *stream, const char *dir) {
+
+}
+void osDataRead(Stream *stream, const char *dir) {
+    char path[255];
+    strcpy(path, dir);
+    strcat(path, stream->name);
+    int fd = dfs_open(path);
+    if (fd > -1) {
+        int size = dfs_size(fd);
+        char *data = new char[size];
+        dfs_read(data, 1, size, fd);
+        dfs_close(fd);
+        if (stream->callback)
+            stream->callback(new Stream(stream->name, data, size), stream->userData);
+        delete[] data;
+    } else
+        if (stream->callback)
+            stream->callback(NULL, stream->userData);
+    delete stream;
+}
+void osCacheWrite(Stream *stream) {
+
+}
+void osCacheRead(Stream *stream) {
+osDataRead(stream,cacheDir);
+}
+
+void osWriteSlot(Stream *stream) {}
+void osReadSlot(Stream *stream) {}
 
 #ifdef OS_FILEIO_CACHE
 void osDataWrite(Stream *stream, const char *dir) {

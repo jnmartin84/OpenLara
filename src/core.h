@@ -6,221 +6,23 @@
 #endif
 
 #include <stdio.h>
-#include <memory.h>
+//#include <memory.h>
 
-#define OS_FILEIO_CACHE
-#define OS_PTHREAD_MT
+//#define OS_FILEIO_CACHE
+//#define OS_PTHREAD_MT
+extern "C" {
+extern void __n64_memcpy_ASM(void* d, const void* s, size_t c);
+extern void __n64_memset_ASM(void* d, char s, size_t c);
+#define memcpy __n64_memcpy_ASM
+#define memset __n64_memset_ASM
+}
 
-#define USE_CUBEMAP_MIPS
+#define _GAPI_SW     1
 
-#if defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP)
-    #define _OS_WP8      1
-    #define _GAPI_D3D11  1
 
-    #undef OS_PTHREAD_MT
-
-    #define INV_SINGLE_PLAYER
-    #define INV_VIBRATION
-    #define INV_GAMEPAD_ONLY
-#elif __UWP__
-    #define _OS_UWP      1
-    #define _GAPI_D3D11  1
-
-    #ifdef __XB1__
-        #define _OS_XB1
-        #define INV_VIBRATION
-        #define INV_GAMEPAD_ONLY
-    #endif
-
-    #undef OS_PTHREAD_MT
-#elif WIN32
-    #define _OS_WIN      1
-    #define _GAPI_GL     1
-    //#define _GAPI_D3D9   1
-    //#define _GAPI_D3D11  1
-    //#define _GAPI_VULKAN 1
-    //#define _GAPI_SW     1
-
-    //#define _NAPI_SOCKET
-
-    #include <windows.h>
-
-    #undef OS_PTHREAD_MT
-
-    #ifdef _GAPI_GL
-        #define VR_SUPPORT
-    #endif
-
-    #define INV_VIBRATION
-    #define INV_QUALITY
-#elif ANDROID
-    #define _OS_ANDROID 1
-    #define _GAPI_GL    1
-    #define _GAPI_GLES  1
-    //#define _GAPI_VULKAN
-
-    #define VR_SUPPORT
-    #define INV_QUALITY
-    #define INV_STEREO
-#elif __SDL2__
-    #define _GAPI_GL   1
-    #ifdef SDL2_GLES
-        #define _GAPI_GLES 1
-        #define DYNGEOM_NO_VBO
-    #endif
-    #define INV_QUALITY
-    #define INV_STEREO
-#elif __RPI__
-    #define _OS_RPI    1
-    #define _GAPI_GL   1
-    #define _GAPI_GLES 1
-
-    #define DYNGEOM_NO_VBO
-    #define INV_VIBRATION
-    #define INV_QUALITY
-    #define INV_STEREO
-#elif __CLOVER__
-    #define _OS_CLOVER 1
-    #define _GAPI_GL   1
-    #define _GAPI_GLES 1
-
-    #define DYNGEOM_NO_VBO
-    #define INV_GAMEPAD_NO_TRIGGER
-    #define INV_GAMEPAD_ONLY
-    #define INV_STEREO
-#elif __PSC__
-    #define _OS_PSC    1
-    #define _GAPI_GL   1
-    #define _GAPI_GLES 1
-
-    #define DYNGEOM_NO_VBO
-    #define INV_GAMEPAD_ONLY
-    #define INV_STEREO
-#elif __BITTBOY__
-    #define _OS_BITTBOY 1
-    #define _OS_LINUX   1
-    #define _GAPI_SW    1
-#elif __GCW0__
-    #define _OS_GCW0   1
-    #define _GAPI_GL   1
-    #define _GAPI_GLES 1
-
-    #define DYNGEOM_NO_VBO
-
-    // etnaviv driver has a bug with cubemap mips generator
-    #undef USE_CUBEMAP_MIPS
-
-    #define INV_SINGLE_PLAYER
-    #define INV_VIBRATION
-    #define INV_GAMEPAD_ONLY
-#elif __linux__
-    #define _OS_LINUX 1
-    #define _GAPI_GL  1
-
-    #define INV_VIBRATION
-    #define INV_QUALITY
-    #define INV_STEREO
-#elif __APPLE__
-    #define _GAPI_GL 1
-    #include "TargetConditionals.h"
-
-    #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
-        #define _OS_IOS    1
-        #define _GAPI_GLES 1
-    #else
-        #define _OS_MAC    1
-        #define INV_STEREO
-    #endif
-    #define INV_QUALITY
-#elif __EMSCRIPTEN__
-    #define _OS_WEB    1
-    #define _GAPI_GL   1
-    #define _GAPI_GLES 1
-
-    #undef  OS_FILEIO_CACHE
-
-    extern int WEBGL_VERSION;
-
-    #define INV_QUALITY
-    #define INV_STEREO
-#elif _3DS
-    #include <3ds.h>
-
-    #define _OS_3DS    1
-    #define _GAPI_C3D  1
-
-    #undef OS_PTHREAD_MT
-    #undef USE_CUBEMAP_MIPS
-    #define USE_ATLAS_RGBA16
-
-    // for 2352 stereo samples
-    // stb_vorbis - 8 ms
-    // libvorbis  - 6 ms
-    #define USE_LIBVORBIS
-
-    #define INV_SINGLE_PLAYER
-    #define INV_GAMEPAD_NO_TRIGGER
-    #define INV_GAMEPAD_ONLY
-    //#define INV_STEREO // hardware switch
-#elif _PSP
-    #define _OS_PSP  1
-    #define _GAPI_GU 1
-
-    #define TEX_SWIZZLE
-    //#define EDRAM_MESH
-    #define EDRAM_TEX
-
-    #undef OS_PTHREAD_MT
-
-    #define INV_SINGLE_PLAYER
-    #define INV_GAMEPAD_NO_TRIGGER
-    #define INV_GAMEPAD_ONLY
-#elif __vita__
-    #define _OS_PSV   1
-    #define _GAPI_GXM 1
-
-    #undef OS_PTHREAD_MT
-
-    //#define USE_LIBVORBIS // TODO crash
-
-    #define INV_SINGLE_PLAYER
-    #define INV_GAMEPAD_NO_TRIGGER
-    #define INV_GAMEPAD_ONLY
-#elif __SWITCH__
-    #define _OS_SWITCH 1
-    #define _GAPI_GL   1
-
-    #undef OS_PTHREAD_MT
-    #define INV_QUALITY
-    #define INV_STEREO
-#elif _XBOX
-    #define _OS_XBOX   1
-    #define _GAPI_D3D8 1
-
-    #undef OS_PTHREAD_MT
-    #undef USE_CUBEMAP_MIPS
-
-    #define NOMINMAX
-    #include <xtl.h>
-    #include <xgraphics.h>
-
-    #define INV_GAMEPAD_NO_TRIGGER
-    #define INV_GAMEPAD_ONLY
-    #define INV_VIBRATION
-#elif _X360
-    #define _OS_X360  1
-    // TODO
-#elif __NDLESS__
-    #define _OS_TNS   1
-    #define _GAPI_SW  1
-    #include <os.h>
-
-    #undef OS_PTHREAD_MT
-#endif
-
-#if !defined(_OS_PSP) && !defined(_OS_TNS)
-    #define USE_INFLATE
-#endif
+//#if !defined(_OS_PSP) && !defined(_OS_TNS)
+//    #define USE_INFLATE
+//#endif
 
 #ifdef USE_INFLATE
     #include "libs/tinf/tinf.h"
@@ -248,15 +50,7 @@
 
 #include "utils.h"
 
-#if defined(_OS_3DS)
-    #define SHADOW_TEX_SIZE      512
-#elif defined(_OS_GCW0)
     #define SHADOW_TEX_SIZE      256
-#elif defined(_OS_PSV)
-    #define SHADOW_TEX_SIZE      1024
-#else
-    #define SHADOW_TEX_SIZE      2048
-#endif
 
 extern void* osMutexInit     ();
 extern void  osMutexFree     (void *obj);
@@ -461,13 +255,9 @@ namespace Core {
     }
 }
 
-#ifdef VR_SUPPORT
-extern void osToggleVR(bool enable);
-#else
 void osToggleVR(bool enable) {
     Core::settings.detail.stereo = Core::Settings::STEREO_OFF;
 }
-#endif
 
 #ifdef PROFILE
     struct TimingCPU {
@@ -572,11 +362,7 @@ struct PSO {
     uint32     renderState;
 };
 
-#if !defined(FFP) && (defined(_OS_WIN) || defined(_OS_LINUX) || defined(_OS_MAC) || defined(_OS_WEB))
-    typedef uint32 Index;
-#else
-    typedef uint16 Index;
-#endif
+typedef uint32 Index;
 
 struct Edge {
     Index a, b;
@@ -789,25 +575,7 @@ namespace Core {
     } stats;
 }
 
-#ifdef _GAPI_SW
-    #include "gapi/sw.h"
-#elif _GAPI_GL
-    #include "gapi/gl.h"
-#elif _GAPI_D3D8
-    #include "gapi/d3d8.h"
-#elif _GAPI_D3D9
-    #include "gapi/d3d9.h"
-#elif _GAPI_D3D11
-    #include "gapi/d3d11.h"
-#elif _OS_3DS
-    #include "gapi/c3d.h"
-#elif _GAPI_GU
-    #include "gapi/gu.h"
-#elif _GAPI_GXM
-    #include "gapi/gxm.h"
-#elif _GAPI_VULKAN
-    #include "gapi/vk.h"
-#endif
+#include "gapi/ghfx.h"
 
 #include "texture.h"
 #include "shader.h"
@@ -819,16 +587,17 @@ namespace Core {
     static int defLang = 0;
 
     void readPerlinAsync(Stream *stream, void *userData) {
+
         int size = PERLIN_TEX_SIZE * PERLIN_TEX_SIZE * PERLIN_TEX_SIZE;
         uint8 *perlinData = NULL;
 
-        if (stream && stream->size == size) {
+        //if (stream && stream->size == size) {
             perlinData = new uint8[size];
-            stream->raw(perlinData, size);
-        } else {
-            perlinData = Noise::generate(123456, PERLIN_TEX_SIZE, 5, 8, 1.0f);
-            Stream::cacheWrite(PERLIN_TEX_NAME, (char*)perlinData, size);
-        }
+         //   stream->raw(perlinData, size);
+        //} else {
+        //    perlinData = Noise::generate(123456, PERLIN_TEX_SIZE, 5, 8, 1.0f);
+         //   Stream::cacheWrite(PERLIN_TEX_NAME, (char*)perlinData, size);
+        //
         delete stream;
 
         perlinTex = new Texture(PERLIN_TEX_SIZE, PERLIN_TEX_SIZE, PERLIN_TEX_SIZE, FMT_LUMINANCE, OPT_REPEAT | OPT_VOLUME, perlinData);
@@ -851,7 +620,7 @@ namespace Core {
     */
         delete[] perlinData;
     }
-
+    void deinit();
     void init() {
         LOG("OpenLara (%s)\n", version);
 
@@ -870,20 +639,17 @@ namespace Core {
 
         isQuit = false;
 
+//		GAPI::deinit();
+	//	Sound::deinit();
+		//Input::deinit();
+		Core::deinit();
+		
         Input::init();
         Sound::init();
-        NAPI::init();
-
+        //NAPI::init();
         GAPI::init();
 
-        #ifdef _OS_3DS
-            Core::eyeTex[0] = new Texture(Core::width, Core::height, 1, TexFormat::FMT_RGB16, OPT_TARGET | OPT_PROXY);
-            Core::eyeTex[1] = new Texture(Core::width, Core::height, 1, TexFormat::FMT_RGB16, OPT_TARGET | OPT_PROXY);
-            GAPI::Texture *outputTex[2] = { Core::eyeTex[0], Core::eyeTex[1] };
-            GAPI::initOutput(outputTex);
-        #endif
-
-        LOG("cache    : %s\n", cacheDir);
+/*        LOG("cache    : %s\n", cacheDir);
         LOG("supports :\n");
         LOG("  variyngs count : %d\n", support.maxVectors);
         LOG("  binary shaders : %s\n", support.shaderBinary  ? "true" : "false");
@@ -901,7 +667,7 @@ namespace Core {
             support.colorFloat ? "full" : (support.texFloat ? (support.texFloatLinear ? "linear" : "nearest") : "false"),
             support.colorHalf  ? "full" : (support.texHalf  ? (support.texHalfLinear  ? "linear" : "nearest") : "false"));
         LOG("\n");
-
+*/
         defaultTarget = NULL;
 
         for (int i = 0; i < MAX_LIGHTS; i++) {
@@ -945,9 +711,9 @@ namespace Core {
         }
 
         perlinTex = NULL;
-        if (support.tex3D) {
-            Stream::cacheRead(PERLIN_TEX_NAME, readPerlinAsync);
-        }
+        //if (support.tex3D) {
+         //   Stream::cacheRead(PERLIN_TEX_NAME, readPerlinAsync);
+        //}
 
     // init settings
         settings.version = SETTINGS_VERSION;
@@ -1086,10 +852,13 @@ namespace Core {
         settings.detail.setShadows(Core::Settings::LOW);
         settings.detail.setWater(Core::Settings::LOW);
     #endif
-
+/*      settings.detail.setFilter   (Core::Settings::HIGH);
+        settings.detail.setLighting (Core::Settings::HIGH);
+        settings.detail.setShadows  (Core::Settings::HIGH);
+        settings.detail.setWater    (Core::Settings::HIGH);
+  */
         memset(&active, 0, sizeof(active));
         renderState = 0;
-
         resetTime();
     }
 
@@ -1104,7 +873,7 @@ namespace Core {
         delete perlinTex;
 
         GAPI::deinit();
-        NAPI::deinit();
+        //NAPI::deinit();
         Sound::deinit();
         Stream::deinit();
     }
@@ -1121,10 +890,13 @@ namespace Core {
     bool update() {
         resetState = false;
         int time = getTime();
-        if (time - lastTime <= 0)
-            return false;
-        deltaTime = (time - lastTime) * 0.001f;
+        if (time - lastTime <= 0){
+            //printf("return false\n");
+			return false;
+		}
+        deltaTime = ((uint32_t)time - (uint32_t)lastTime) * 0.001f;
         lastTime = time;
+        //printf("return true\n");
         return true;
     }
 

@@ -1,20 +1,20 @@
 #ifndef H_SOUND
 #define H_SOUND
 
-#ifdef _OS_TNS
+//#ifdef _OS_TNS
     #define NO_SOUND
-#endif
+//#endif
 
 #ifndef NO_SOUND
-    #define DECODE_ADPCM
-    #define DECODE_IMA
-    #define DECODE_VAG
-    #define DECODE_XA
-    #define DECODE_OGG
+//    #define DECODE_ADPCM
+ //   #define DECODE_IMA
+  //  #define DECODE_VAG
+   // #define DECODE_XA
+    //#define DECODE_OGG
 
-    #if !defined(_OS_PSP) && !defined(_OS_WEB) && !defined(_OS_PSV) && !defined(_OS_3DS) && !defined(_OS_XBOX) && !defined(_OS_XB1)
-        #define DECODE_MP3
-    #endif
+//    #if !defined(_OS_PSP) && !defined(_OS_WEB) && !defined(_OS_PSV) && !defined(_OS_3DS) && !defined(_OS_XBOX) && !defined(_OS_XB1)
+ //       #define DECODE_MP3
+  //  #endif
 #endif
 
 #include "utils.h"
@@ -564,8 +564,9 @@ namespace Sound {
     };
 #endif
 
-#ifdef DECODE_XA
-    // http://problemkaputt.de/psx-spx.htm#cdromxaaudioadpcmcompression
+//#ifdef DECODE_XA
+#if 1 
+ // http://problemkaputt.de/psx-spx.htm#cdromxaaudioadpcmcompression
     struct XA : Decoder
     {
         typedef bool (Callback)(void* userData);

@@ -15,6 +15,12 @@
 #if defined(_GAPI_D3D8) || defined(_GAPI_D3D9) || defined(_GAPI_D3D11)
     #define EARLY_CLEAR
 #endif
+extern "C" {
+extern void __n64_memcpy_ASM(void* d, const void* s, size_t c);
+extern void __n64_memset_ASM(void* d, char s, size_t c);
+#define memcpy __n64_memcpy_ASM
+#define memset __n64_memset_ASM
+}
 
 struct ShaderCache {
     enum Effect { FX_NONE = 0, FX_UNDERWATER = 1, FX_ALPHA_TEST = 2 };

@@ -195,7 +195,6 @@ struct MeshBuilder {
 
     // allocate room geometry ranges
         rooms = new RoomRange[level->roomsCount];
-
         int iCount = 0, vCount = 0;
 
     // sort room faces by material
@@ -206,7 +205,7 @@ struct MeshBuilder {
             sort(data.sprites, data.sCount);
         }
 
-    // sort mesh faces by material
+		// sort mesh faces by material
         for (int i = 0; i < level->meshesCount; i++) {
             TR::Mesh &mesh = level->meshes[i];
             sort(mesh.faces, mesh.fCount);
@@ -595,8 +594,7 @@ struct MeshBuilder {
     #else
         plane.iCount = 0;
     #endif
-
-        LOG("MegaMesh (i:%d v:%d a:%d, size:%d)\n", iCount, vCount, aCount, int(iCount * sizeof(Index) + vCount * sizeof(GAPI::Vertex)));
+        //LOG("MegaMesh (i:%d v:%d a:%d, size:%d)\n", iCount, vCount, aCount, int(iCount * sizeof(Index) + vCount * sizeof(GAPI::Vertex)));
 
     // compile buffer and ranges
         mesh = new Mesh(indices, iCount, vertices, vCount, aCount, false);
@@ -645,7 +643,7 @@ struct MeshBuilder {
         circle.aIndex     = rangeCommon.aIndex;
         plane.aIndex      = rangeCommon.aIndex;
         box.aIndex        = rangeCommon.aIndex;
-    }
+	}
 
     ~MeshBuilder() {
         for (int i = 0; i < level->roomsCount; i++)
@@ -1419,7 +1417,7 @@ struct MeshBuilder {
     void renderRoomGeometry(int roomIndex) {
         Geometry &geom = rooms[roomIndex].geometry[transparent];
         for (int i = 0; i < geom.count; i++) {
-            MeshRange &range = geom.ranges[i];
+            MeshRange &range = geom.ranges[geom.count-1-i];
 
         #ifdef SPLIT_BY_TILE
             int clutOffset = level->rooms[roomIndex].flags.water ? 512 : 0;
@@ -1438,7 +1436,7 @@ struct MeshBuilder {
 
             const TR::Room::Data &d = level->rooms[roomIndex].data;
             for (int i = 0; i < dyn.count; i++) {
-                TR::Face        &f = d.faces[dyn.faces[i]];
+                TR::Face        &f = d.faces[dyn.faces[dyn.count-i]];
                 TR::TextureInfo &t = level->objectTextures[f.flags.texture];
 
             #ifdef SPLIT_BY_TILE

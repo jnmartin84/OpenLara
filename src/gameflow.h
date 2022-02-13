@@ -1046,9 +1046,10 @@ namespace TR {
 
     Version getGameVersion() {
         useEasyStart = true;
-        if (Stream::existsContent("DATA/GYM.PHD") || Stream::existsContent("GYM.PHD"))
+        //if (Stream::existsContent("DATA/GYM.PHD") || Stream::existsContent("GYM.PHD"))
             return VER_TR1_PC;
-        if (Stream::existsContent("PSXDATA/GYM.PSX"))
+#if 0     
+	 if (Stream::existsContent("PSXDATA/GYM.PSX"))
             return VER_TR1_PSX;
         if (Stream::existsContent("DATA/GYM.SAT"))
             return VER_TR1_SAT;
@@ -1069,7 +1070,8 @@ namespace TR {
 
         useEasyStart = false;
         return VER_UNKNOWN;
-    }
+#endif   
+   }
 
     void getGameLevelFile(char *dst, Version version, LevelID id) {
         if (useEasyStart) {
@@ -1210,24 +1212,30 @@ namespace TR {
         const char *lng[] = { "", "", LANG_PREFIXES };
 
         int start = 1;
-        if (Core::settings.audio.language != 0) {
-            start = 0;
-            lng[start] = lng[Core::settings.audio.language + 2];
-        }
+//        if (Core::settings.audio.language != 0) {
+  //          start = 0;
+    //        lng[start] = lng[Core::settings.audio.language + 2];
+      //  }
 
         char buf[64];
-        for (int f = 0; f < COUNT(fmt); f++)
-            for (int l = start; l < COUNT(lng); l++) {
-                strcpy(buf, pre);
-                strcat(buf, name);
-                strcat(buf, lng[l]);
+        for (int f = 0; f < COUNT(fmt); f++) {
+ //           for (int l = start; l < COUNT(lng); l++) {
+if(pre[0] != '/') {
+ strcpy(buf, pre);
+               strcat(buf, name);
+}
+else {
+	strcpy(buf,name);
+}	
+//                strcat(buf, lng[l]);
                 strcat(buf, fmt[f]);
-                if (Stream::existsContent(buf)) {
+       		printf("checking for %s\n", buf);
+	         if (Stream::existsContent(buf)) {
                     strcpy(name, buf);
                     return true;
                 }
-            }
-
+//            }
+		}
         return false;
     }
 
@@ -1372,12 +1380,12 @@ namespace TR {
         switch (id) {
         // TR1
             case LVL_TR1_TITLE :
-                CHECK_FILE("TITLEH.png");           // Android
+ //               CHECK_FILE("TITLEH.png");           // Android
                 CHECK_FILE("DATA/TITLEH.PCX");      // PC
-                CHECK_FILE("DELDATA/AMERTIT.RAW");  // PSX
-                CHECK_FILE("DELDATA/JAPTIT.RAW");   // PSX JAP
-                CHECK_FILE("BINDATA/USATIT.BIN");   // SEGA
-                CHECK_FILE("BINDATA/TITLE1.BIN");   // SEGA
+   //             CHECK_FILE("DELDATA/AMERTIT.RAW");  // PSX
+     //           CHECK_FILE("DELDATA/JAPTIT.RAW");   // PSX JAP
+       //         CHECK_FILE("BINDATA/USATIT.BIN");   // SEGA
+         //       CHECK_FILE("BINDATA/TITLE1.BIN");   // SEGA
                 return "level/1/AMERTIT.PNG";       // WEB
             case LVL_TR1_GYM :
                 CHECK_FILE("DELDATA/GYMLOAD.RAW");
@@ -1418,7 +1426,7 @@ namespace TR {
         // TR2
             case LVL_TR2_TITLE :
                 CHECK_FILE("TITLE.png");            // Android
-                CHECK_FILE("data/TITLE.PCX");       // PC
+                CHECK_FILE("DATA/TITLE.PCX");       // PC
                 CHECK_FILE("pix/title.pcx");        // PC
                 CHECK_FILE("PIXUS/TITLEUS.RAW");    // PSX US
                 CHECK_FILE("PIXJAP/TITLEJAP.RAW");  // PSX US

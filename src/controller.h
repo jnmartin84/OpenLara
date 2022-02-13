@@ -39,7 +39,7 @@ struct ICamera {
     virtual int  getRoomIndex() const { return TR::NO_ROOM; }
     virtual void doCutscene(const vec3 &pos, float rotation) {}
     virtual Controller* getOwner() { return NULL; }
-
+virtual ~ICamera() {}
     void setAngle(float x, float y) {
         angle.x = x * DEG2RAD;
         angle.y = y * DEG2RAD;

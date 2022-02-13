@@ -4,6 +4,12 @@
 #include "utils.h"
 #include "gameflow.h"
 #include "savegame.h"
+extern "C" {
+extern void __n64_memcpy_ASM(void* d, const void* s, size_t c);
+extern void __n64_memset_ASM(void* d, char s, size_t c);
+#define memcpy __n64_memcpy_ASM
+#define memset __n64_memset_ASM
+}
 
 #define MAX_RESERVED_ENTITIES 128
 #define MAX_TRIGGER_COMMANDS  32
@@ -18,7 +24,6 @@
 #define TR2_TYPES_START       1000
 #define TR3_TYPES_START       2000
 #define TR4_TYPES_START       3000
-
 
 #define TR_TYPES(E) \
     E( LARA                  = TR1_TYPES_START) \
@@ -1618,8 +1623,10 @@ namespace TR {
     union fixed {
         uint32 value;
         struct {
-            uint16 L;
+//            uint16 L;
+//           int16  H;
             int16  H;
+            uint16 L;
         };
 
         operator float() const {
@@ -1649,7 +1656,7 @@ namespace TR {
         uint16       index;
         uint16       clut;
         uint16       tile;
-        uint32       attribute:15, animated:1;    // 0 - opaque, 1 - transparent, 2 - blend additive, animated, triangle
+        uint32       animated:1, attribute:15;    // 0 - opaque, 1 - transparent, 2 - blend additive, animated, triangle
         short2       texCoord[4];
         short2       texCoordAtlas[4];
         int16        l, t, r, b;
@@ -1696,20 +1703,22 @@ namespace TR {
 
     struct Face {
         union {
-            struct { uint16 texture:15, doubleSided:1; };
+            struct { uint16 doubleSided:1, texture:15; };
             uint16 value;
         } flags;
 
         union {
-            struct { uint16 additive:1, env:1, shininess:6; };
+            struct { uint16  shininess:6, env:1, additive:1; };
             uint16 value;
         } effects;
 
         short3 normal;
         uint16 vertices[4];
-        uint8  triangle:1, colored:1, water:1, flip:5;
+//        uint8  flip:5,water:1,colored:1,triangle:1;
 
-        Face() : triangle(0), colored(0), water(0), flip(0) {
+        uint8  flip:5, water:1, colored:1, triangle:1;
+		
+        Face() : flip(0), water(0), colored(0), triangle(0)  {
             flags.value   = 0;
             effects.value = 0;
         }
@@ -1822,7 +1831,10 @@ namespace TR {
         int16   alternateRoom;
         union {
             struct {
-                uint16 water:1, :2, sky:1, :1, wind:1, unused:9, visible:1;
+//                uint16 water:1, :2, sky:1, :1, wind:1, unused:9, visible:1;
+                uint16 visible:1, unused:9, wind:1, :1, sky:1, :2, water:1;
+//				water:1, :2, sky:1, :1, wind:1, unused:9, visible:1;
+
             };
             uint16 value;
         } flags;
@@ -1990,27 +2002,34 @@ namespace TR {
         uint16 value;
         union Command {
             struct {
-                uint16 func:5, tri:3, sub:7, end:1;
+//                uint16 func:5, tri:3, sub:7, end:1;
+                uint16 end:1, sub:7, tri:3, func:5;//, tri:3, sub:7, end:1;
             };
             struct {
-                int16 :5, a:5, b:5, :1;
+//                int16 :5, a:5, b:5, :1;
+                int16 :1, b:5, a:5, :5;
             } triangle;
-        } cmd;
+} cmd;
         struct {
-            int16 slantX:8, slantZ:8;
+//            int16 slantX:8, slantZ:8;
+            int16 slantZ:8, slantX:8;
         };
         struct {
-            uint16 a:4, b:4, c:4, d:4;
+//            uint16 a:4, b:4, c:4, d:4;
+            uint16 d:4, c:4, b:4, a:4;
         };
-        struct TriggerInfo {
-            uint16  timer:8, once:1, mask:5, :2;
-        } triggerInfo;
+	struct TriggerInfo {
+//uint16  timer:8, once:1, mask:5, :2;
+uint16  :2, mask:5, once:1,timer:8;
+ 
+ } triggerInfo;
         union TriggerCommand {
             struct {
-                uint16 args:10, action:5, end:1;
+//                uint16 args:10, action:5, end:1;
+                uint16 end:1, action:5, args:10;//, action:5, end:1;
             };
             struct {
-                uint16 timer:8, once:1, speed:5, :2;
+                uint16 :2, speed:5, once:1, timer:8;//timer:8, once:1, speed:5, :2;
             };
         } triggerCmd;
 
@@ -2041,12 +2060,13 @@ namespace TR {
     };
 
     union Overlap {
-        struct { uint16 boxIndex:15, end:1; };
+        struct { uint16 end:1, boxIndex:15;};//, end:1; };
         uint16 value;
     };
 
     struct Flags {
-        uint16 :8, once:1, active:5, :2;
+//        uint16 :8, once:1, active:5, :2;
+        uint16 :2, active:5, once:1, :8;//:8, once:1, active:5, :2;
     };
 
     // internal mesh structure
@@ -2061,7 +2081,8 @@ namespace TR {
         int16       radius;
         union {
             struct {
-                uint16 isStatic:1, reserved:15;
+                uint16  reserved:15,isStatic:1;
+                //uint16 isStatic:1, reserved:15;
             };
             uint16 value;
         }           flags;
@@ -2096,7 +2117,18 @@ namespace TR {
         };
         union Flags {
             struct { 
-                uint16 state:2, unused:3, smooth:1, :1, invisible:1, once:1, active:5, reverse:1, rendered:1;
+//                uint16 state:2, unused:3, smooth:1, :1, invisible:1, once:1, active:5, reverse:1, rendered:1;
+                uint16 
+				rendered:1,
+				reverse:1, 
+				active:5, 
+				once:1, 
+				invisible:1, 
+				:1, 
+				smooth:1, 
+				unused:3, 
+				state:2				
+				;
             };
             uint16 value;
         } flags;
@@ -2773,7 +2805,9 @@ namespace TR {
             int16   speed;  // for sink (underwater current)
         };
         union {
-            struct { uint16 :8, once:1, :5, :2; };
+//            struct { uint16 :8, once:1, :5, :2; };
+            struct { uint16 :2, :5, once:1, :8; };
+
             uint16 boxIndex;
         } flags;
     };
@@ -2825,7 +2859,7 @@ namespace TR {
         int16   floor; // Height value in global units
         union {
             struct {
-                uint16 index:14, block:1, blockable:1;    // Index into Overlaps[].
+                uint16 blockable:1, block:1, index:14; //index:14, block:1, blockable:1;    // Index into Overlaps[].
             };
             uint16 value;
         } overlap;
@@ -2864,8 +2898,10 @@ namespace TR {
         float  pitch;
         uint16 index;
         union {
-            struct { uint16 mode:2, count:4, unused:6, camera:1, pitch:1, gain:1, :1; };
-            uint16 value;
+//            struct { uint16 mode:2, count:4, unused:6, camera:1, pitch:1, gain:1, :1; };
+            struct { uint16 :1, gain:1, pitch:1, camera:1, unused:6, count:4, mode:2; };
+ 
+ uint16 value;
         } flags;
     };
 
@@ -3156,6 +3192,14 @@ namespace TR {
 
         uint32 tsubCount;
         uint8 *tsub;
+#define stream_read16(x) { \
+	stream.read((x));\
+	(x) = swap16((x));\
+}
+#define stream_read32(x) { \
+	stream.read((x));\
+	(x) = swap32((x));\
+}
 
         Level(Stream &stream) {
             memset(this, 0, sizeof(*this));
@@ -3178,7 +3222,7 @@ namespace TR {
             id = TR::getLevelID(stream.size, stream.name, version, isDemoLevel);
 
             if (version == VER_UNKNOWN || version == VER_TR1_PC || version == VER_TR1_PSX || version == VER_TR1_SAT || version == VER_TR3_PSX) {
-                stream.read(magic);
+                stream_read32(magic);
 
                 if (magic != MAGIC_TR1_PC  &&
                     magic != MAGIC_TR1_SAT &&
@@ -3188,7 +3232,7 @@ namespace TR {
                     magic != MAGIC_TR3_PC3 &&
                     magic != MAGIC_TR3_PSX &&
                     magic != MAGIC_TR4_PC) {
-                    stream.read(magic);
+                    stream_read32(magic);
                 }
 
                 switch (magic) {
@@ -3214,7 +3258,7 @@ namespace TR {
         #ifdef _GAPI_SW
             ASSERT((version & VER_TR1_PC) == VER_TR1_PC);
             if ((version & VER_TR1_PC) != VER_TR1_PC) {
-                return;
+				return;
             }
         #endif
 
@@ -3316,10 +3360,12 @@ namespace TR {
         }
 
         void loadTR1_PC (Stream &stream) {
-            stream.read(tiles8, stream.read(tilesCount));
+			stream_read32(tilesCount);
+			stream.read(tiles8, tilesCount);
+//            stream.read(tiles8, stream.read(tilesCount));
 
             readDataArrays(stream);
-            readObjectTex(stream);
+			readObjectTex(stream);
             readSpriteTex(stream);
 
             if (isDemoLevel) {
@@ -3716,84 +3762,179 @@ namespace TR {
                 stream.seek(4);            
             }
 
-            rooms = stream.read(roomsCount) ? new Room[roomsCount] : NULL;
+//			stream.read(roomsCount);
+			stream_read16(roomsCount);
+
+            rooms = roomsCount ? new Room[roomsCount] : NULL;
             for (int i = 0; i < roomsCount; i++) {
                 readRoom(stream, i);
             }
 
-            stream.read(floors, stream.read(floorsCount));
-
+//			stream.read(floorsCount);
+//			stream.read(floors, stream.read(floorsCount));
+			stream_read32(floorsCount);
+			floors = floorsCount ? new FloorData[floorsCount] : NULL;
+			for (int i=0;i<floorsCount;i++) {
+//				readFloor(stream,i);
+				stream_read16(floors[i].value);
+			}
+			
             if (version == VER_TR3_PSX) {
                 // outside room offsets
                 stream.seek(27 * 27 * 2);
                 // outside rooms table
                 int size;
                 stream.read(size);
+				size = swap32(size);
                 stream.seek(size);
                 // room mesh bbox
                 stream.read(size);
+				size = swap32(size);
                 stream.seek(8 * size);
             }
 
-            stream.read(meshData,    stream.read(meshDataSize));
-            stream.read(meshOffsets, stream.read(meshOffsetsCount));
+//			stream.read(meshDataSize);
+//			stream.read(meshData,    meshDataSize);
+			stream_read32(meshDataSize);
+			meshData = new uint16[meshDataSize];
+			for(int i=0;i<meshDataSize;i++) {
+				 stream_read16(meshData[i]);
+			}
+//			stream.read(meshOffsetsCount);
+//			stream.read(meshOffsets, meshOffsetsCount);
+            stream_read32(meshOffsetsCount);
+			meshOffsets = new int32[meshOffsetsCount];
+			for(int i=0;i<meshOffsetsCount;i++) {
+				 stream_read32(meshOffsets[i]);
+			}
 
             readAnims(stream);
 
-            stream.read(states,      stream.read(statesCount));
-            stream.read(ranges,      stream.read(rangesCount));
-            stream.read(commands,    stream.read(commandsCount));
-            stream.read(nodesData,   stream.read(nodesDataSize));
-            stream.read(frameData,   stream.read(frameDataSize));
+            //stream.read(states, stream.read(statesCount));
+			stream_read32(statesCount);
+			states = statesCount > 0 ? new AnimState[statesCount] : NULL;
+			for(int i=0;i<statesCount;i++) {
+				AnimState &as = states[i];
+				stream_read16(as.state);
+				stream_read16(as.rangesCount);
+				stream_read16(as.rangesOffset);
+			}
+			
+//rangesCount = swap32(rangesCount);			
+  //          stream.read(ranges,      rangesCount);
+			stream_read32(rangesCount);
+			ranges = rangesCount > 0 ? new AnimRange[rangesCount] : NULL;
+			for(int i=0;i<rangesCount;i++) {
+				AnimRange &ar = ranges[i];
+				stream_read16(ar.low);
+				stream_read16(ar.high);
+				stream_read16(ar.nextAnimation);
+				stream_read16(ar.nextFrame);
+			}
+
+//commandsCount = swap32(commandsCount);			
+ //           stream.read(commands,    commandsCount);
+			stream_read32(commandsCount);
+			commands = commandsCount > 0 ? new int16[commandsCount] : NULL;
+			for(int i=0;i<commandsCount;i++) {
+				stream_read16(commands[i]);
+			}
+
+			//stream.read(nodesDataSize);
+//           stream.read(nodesData,   nodesDataSize);
+			stream_read32(nodesDataSize);
+			nodesData = nodesDataSize > 0 ? new uint32[nodesDataSize] : NULL;
+			for(int i=0;i<nodesDataSize;i++) {
+				stream_read32(nodesData[i]);
+			}
+
+			stream_read32(frameDataSize);
+			frameData = frameDataSize > 0 ? new uint16[frameDataSize] : NULL;
+			for(int i=0;i<frameDataSize;i++) {
+				stream_read16(frameData[i]);
+			}
 
             readModels(stream);
 
-            stream.read(staticMeshes, stream.read(staticMeshesCount));
+//staticMeshesCount = swap32(staticMeshesCount);
+//            stream.read(staticMeshes, staticMeshesCount);
+			stream_read32(staticMeshesCount);
+			staticMeshes = staticMeshesCount > 0 ? new StaticMesh[staticMeshesCount] : NULL;
+			for(int i=0;i<staticMeshesCount;i++) {
+				StaticMesh &sm = staticMeshes[i];
+				stream_read32(sm.id);
+				stream_read16(sm.mesh);
+				//minmax is minX maxX minY maxY minZ maxZ
+				// 6 uint16
+				stream_read16(sm.vbox.minX);
+				stream_read16(sm.vbox.maxX);
+				stream_read16(sm.vbox.minY);
+				stream_read16(sm.vbox.maxY);
+				stream_read16(sm.vbox.minZ);
+				stream_read16(sm.vbox.maxZ);
+				
+				stream_read16(sm.cbox.minX);
+				stream_read16(sm.cbox.maxX);
+				stream_read16(sm.cbox.minY);
+				stream_read16(sm.cbox.maxY);
+				stream_read16(sm.cbox.minZ);
+				stream_read16(sm.cbox.maxZ);	
+				
+				stream_read16(sm.flags);
+			}
         }
 
         void readAnims(Stream &stream) {
-            stream.read(animsCount);
+            stream_read32(animsCount);
+//			animsCount = swap32(animsCount);
             anims = animsCount ? new Animation[animsCount] : NULL;
             for (int i = 0; i < animsCount; i++) {
                 Animation &anim = anims[i];
-                stream.read(anim.frameOffset);
-                stream.read(anim.frameRate);
+                stream_read32(anim.frameOffset);
+				stream.read(anim.frameRate);
                 stream.read(anim.frameSize);
-                stream.read(anim.state);
-                stream.read(anim.speed);
-                stream.read(anim.accel);
-                if (version & (VER_TR4 | VER_TR5)) {
+                stream_read16(anim.state);
+				stream_read32(anim.speed.value);
+				stream_read32(anim.accel.value);
+ 
+				if (version & (VER_TR4 | VER_TR5)) {
                     stream.read(anim.speedLateral);
-                    stream.read(anim.accelLateral);
+                    anim.speedLateral.value = swap32(anim.speedLateral.value);
+					stream.read(anim.accelLateral);
+                    anim.accelLateral.value = swap32(anim.accelLateral.value);
                 } else {
                     anim.speedLateral.value = 0;
                     anim.accelLateral.value = 0;
                 }
-                stream.read(anim.frameStart);
-                stream.read(anim.frameEnd);
-                stream.read(anim.nextAnimation);
-                stream.read(anim.nextFrame);
-                stream.read(anim.scCount);
-                stream.read(anim.scOffset);
-                stream.read(anim.acCount);
-                stream.read(anim.animCommand);
+                stream_read16(anim.frameStart);
+				stream_read16(anim.frameEnd);
+                stream_read16(anim.nextAnimation);
+				stream_read16(anim.nextFrame);
+                stream_read16(anim.scCount);
+                stream_read16(anim.scOffset);
+                stream_read16(anim.acCount);
+                stream_read16(anim.animCommand);
             }
 
         }
 
+
+		
         void readModels(Stream &stream) {
-            models = stream.read(modelsCount) ? new Model[modelsCount] : NULL;
+			stream_read32(modelsCount);
+            models = modelsCount ? new Model[modelsCount] : NULL;
             for (int i = 0; i < modelsCount; i++) {
                 Model &m = models[i];
                 uint16 type;
-                m.type = Entity::Type(stream.read(type));
+				stream_read16(type);
+                m.type = Entity::Type(type);
                 stream.seek(sizeof(m.index));
                 m.index = i;
-                stream.read(m.mCount);
-                stream.read(m.mStart);
-                stream.read(m.node);
-                stream.read(m.frame);
-                stream.read(m.animation);
+                stream_read16(m.mCount);
+				stream_read16(m.mStart);
+                stream_read32(m.node);
+                stream_read32(m.frame);
+                stream_read16(m.animation);
                 if (version & VER_PSX) {
                     stream.seek(2);
                 }
@@ -3801,26 +3942,64 @@ namespace TR {
         }
 
         void readCameras(Stream &stream) {
-            stream.read(cameras, stream.read(camerasCount));
-        }
+			stream_read32(camerasCount);
+            //stream.read(cameras, camerasCount);
+			cameras = camerasCount ? new Camera[camerasCount] : NULL;
+			for (int i=0;i<camerasCount;i++) {
+				Camera &c = cameras[i];
+				stream_read32(c.x);
+				stream_read32(c.y);
+				stream_read32(c.z);
+				stream_read16(c.room);
+				stream_read16(c.flags.boxIndex);
+			}
+		}
 
         void readFlybyCameras(Stream &stream) {
-            stream.read(flybyCameras, stream.read(flybyCamerasCount));
-        }
+			stream_read32(flybyCamerasCount);
+			flybyCameras = flybyCamerasCount ? new FlybyCamera[flybyCamerasCount] : NULL;
+			for (int i=0;i<flybyCamerasCount;i++) {
+				FlybyCamera &c = flybyCameras[i];
+				stream_read32(c.x);
+				stream_read32(c.y);
+				stream_read32(c.z);
+				stream_read32(c.dx);
+				stream_read32(c.dy);
+				stream_read32(c.dz);
+				stream.read(c.sequence);
+				stream.read(c.index);
+				stream_read16(c.fov);
+				stream_read16(c.roll);
+				stream_read16(c.timer);
+				stream_read16(c.speed);
+				stream_read16(c.flags);
+				stream_read32(c.room);
+			}
+       }
 
         void readSoundSources(Stream &stream) {
-            stream.read(soundSources, stream.read(soundSourcesCount));
-        }
+			stream_read32(soundSourcesCount);
+			soundSources = soundSourcesCount > 0 ? new SoundSource[soundSourcesCount] : NULL;
+			for(int i=0;i<soundSourcesCount;i++) {
+				SoundSource &s = soundSources[i];
+				stream_read32(s.x);
+				stream_read32(s.y);
+				stream_read32(s.z);
+				stream_read16(s.id);
+				stream_read16(s.flags);
+			}
+		}
 
         void readBoxes(Stream &stream) {
-            boxes = stream.read(boxesCount) ? new Box[boxesCount] : NULL;
+            stream_read32(boxesCount)
+			boxes = boxesCount ? new Box[boxesCount] : NULL;
             for (int i = 0; i < boxesCount; i++) {
                 Box &b = boxes[i];
                 if (version & VER_TR1) {
-                    stream.read(b.minZ);
-                    stream.read(b.maxZ);
-                    stream.read(b.minX);
-                    stream.read(b.maxX);
+                    stream_read32(b.minZ);
+                    stream_read32(b.maxZ);
+                    stream_read32(b.minX);
+                    stream_read32(b.maxX);
                 }
                 
                 if (version & (VER_TR2 | VER_TR3 | VER_TR4 | VER_TR5)) {
@@ -3831,19 +4010,32 @@ namespace TR {
                     b.maxX = stream.read(value) * 1024;
                 }
 
-                stream.read(b.floor);
-                stream.read(b.overlap.value);
+                stream_read16(b.floor);
+                stream_read16(b.overlap.value);
             }
         }
 
         void readOverlaps(Stream &stream) {
-            stream.read(overlaps, stream.read(overlapsCount));
+            stream_read32(overlapsCount);
+			overlaps = overlapsCount > 0 ? new Overlap[overlapsCount] : NULL;
+			for(int i=0;i<overlapsCount;i++) {
+				Overlap& o = overlaps[i];
+				stream_read16(o.value);
+			}
         }
 
         void readZones(Stream &stream) {
             for (int i = 0; i < 2; i++) {
-                stream.read(zones[i].ground1, boxesCount);
-                stream.read(zones[i].ground2, boxesCount);
+                zones[i].ground1 = new uint16[boxesCount];
+                zones[i].ground2 = new uint16[boxesCount];
+				zones[i].fly = new uint16[boxesCount];
+				for(int j=0;j<boxesCount;j++) {
+					stream_read16(zones[i].ground1[j]);
+				}
+				for(int j=0;j<boxesCount;j++) {
+					stream_read16(zones[i].ground2[j]);
+				}
+	
                 if (!(version & VER_TR1)) {
                     stream.read(zones[i].ground3, boxesCount);
                     stream.read(zones[i].ground4, boxesCount);
@@ -3851,8 +4043,10 @@ namespace TR {
                     zones[i].ground3 = NULL;
                     zones[i].ground4 = NULL;
                 }
-                stream.read(zones[i].fly, boxesCount);
-            }
+				for(int j=0;j<boxesCount;j++) {
+					stream_read16(zones[i].fly[j]);
+				}
+			}
         }
 
         void readLightMap(Stream &stream) {
@@ -3863,29 +4057,60 @@ namespace TR {
         }
 
         void readCameraFrames(Stream &stream) {
-            stream.read(cameraFrames, stream.read(cameraFramesCount));
-        }
+            stream_read16(cameraFramesCount);
+			cameraFrames = cameraFramesCount > 0 ? new CameraFrame[cameraFramesCount] : NULL;
+			for(int i=0;i<cameraFramesCount;i++) {
+				CameraFrame& c = cameraFrames[i];
+				stream_read16(c.target.x);
+				stream_read16(c.target.y);
+				stream_read16(c.target.z);
+				stream_read16(c.pos.x);
+				stream_read16(c.pos.y);
+				stream_read16(c.pos.z);
+				stream_read16(c.fov);
+				stream_read16(c.roll);
+			}
+		}
 
         void readAIObjects(Stream &stream) {
-            stream.read(AIObjects, stream.read(AIObjectsCount));
-        }
+            stream_read32(AIObjectsCount);
+			AIObjects = AIObjectsCount > 0 ? new AIObject[AIObjectsCount] : NULL;
+			for(uint32 i=0;i<AIObjectsCount;i++) {
+				AIObject& a = AIObjects[i];
+				stream_read16(a.type);
+				stream_read16(a.room);
+				stream_read32(a.x);
+				stream_read32(a.y);
+				stream_read32(a.z);
+				stream_read16(a.OCB);
+				stream_read16(a.flags);
+				stream_read32(a.angle);
+			}
+		}
 
         void readDemoData(Stream &stream) {
-            stream.read(demoData, stream.read(demoDataSize));
+			stream_read16(demoDataSize);
+            stream.read(demoData, demoDataSize);
         }
 
         void readSoundMap(Stream &stream) {
             soundsCount = (version & VER_TR1) ? 256 : 370;
-            stream.read(soundsMap, soundsCount);
-            soundsInfo = (stream.read(soundsInfoCount) > 0) ? new SoundInfo[soundsInfoCount] : NULL;
+			soundsMap = new int16[soundsCount];
+			for(int i=0;i<soundsCount;i++) {
+				stream_read16(soundsMap[i]);
+			}
+			stream_read32(soundsInfoCount);
+            soundsInfo = (soundsInfoCount > 0) ? new SoundInfo[soundsInfoCount] : NULL;
             for (int i = 0; i < soundsInfoCount; i++) {
                 SoundInfo &s = soundsInfo[i];
 
-                stream.read(s.index);
+                stream_read16(s.index);
                 if (version & (VER_TR1 | VER_TR2)) {
                     uint16 v;
-                    stream.read(v); s.volume = float(v) / 0x7FFF;
-                    stream.read(v); s.chance = float(v) / 0xFFFF;
+					stream_read16(v);
+                    s.volume = float(v) / 0x7FFF;
+                    stream_read16(v);
+					s.chance = float(v) / 0xFFFF;
                     s.range = 8 * 1024;
                     s.pitch = 0.2f;
                 } else {
@@ -3896,18 +4121,23 @@ namespace TR {
                     stream.read(v); s.pitch  = float(v) / 0xFF;
                 }
 
-                stream.read(s.flags.value);
+				stream_read16(s.flags.value);
 
                 ASSERT(s.volume <= 1.0f);
             }
         }
 
+
         void readSoundData(Stream &stream) {
-            stream.read(soundDataSize) > 0 ? stream.read(soundData, soundDataSize) : NULL;
-        }
+			//stream_read32(soundDataSize);
+			soundDataSize = 0;
+			soundDataSize > 0 ? stream.read(soundData, soundDataSize) : NULL;
+	  }
 
         void readSoundOffsets(Stream &stream) {
-            stream.read(soundOffsetsCount) > 0 ? stream.read(soundOffsets, soundOffsetsCount) : NULL;
+			//stream_read32(soundOffsetsCount);
+			soundOffsetsCount = 0;
+			soundOffsetsCount > 0 ? stream.read(soundOffsets, soundOffsetsCount) : NULL;
         }
 
         #define CHUNK(str) ((uint64)((const char*)(str))[0]        | ((uint64)((const char*)(str))[1] << 8)  | ((uint64)((const char*)(str))[2] << 16) | ((uint64)((const char*)(str))[3] << 24) | \
@@ -3985,19 +4215,19 @@ namespace TR {
                 switch (chunkType) {
                 // SAT
                     case SAT_ROOMFILE : 
-                        ASSERTV(stream.readBE32() == 0x00000000);
-                        ASSERTV(stream.readBE32() == 0x00000020);
+                        ASSERTV(stream.readLE32() == 0x00000000);//be32
+                        ASSERTV(stream.readLE32() == 0x00000020);//be32
                         break;
                     case SAT_ROOMTINF :
-                        ASSERTV(stream.readBE32() == 0x00000010);
-                        roomTexturesCount = stream.readBE32();
+                        ASSERTV(stream.readLE32() == 0x00000010);//be32
+                        roomTexturesCount = stream.readLE32();//be32
                         roomTextures = roomTexturesCount ? new TextureInfo[roomTexturesCount] : NULL;
                         for (int i = 0; i < roomTexturesCount; i++)
                             readObjectTex(stream, roomTextures[i], TEX_TYPE_ROOM);
                         break;
                     case SAT_ROOMTQTR : {
-                        ASSERTV(stream.readBE32() == 0x00000001);
-                        roomTexturesDataSize = stream.readBE32();
+                        ASSERTV(stream.readLE32() == 0x00000001);//be32
+                        roomTexturesDataSize = stream.readLE32();//be32
                         roomTexturesData = roomTexturesDataSize ? new uint8[roomTexturesDataSize] : NULL;
                         stream.raw(roomTexturesData, roomTexturesDataSize);
 /*
@@ -4007,64 +4237,64 @@ namespace TR {
                         break;
                     }
                     case SAT_ROOMTSUB :
-                        ASSERTV(stream.readBE32() == 0x00000001);
+                        ASSERTV(stream.readLE32() == 0x00000001);//be32
                         /*
                         roomTexturesDataSize = stream.readBE32();
                         roomTexturesData = roomTexturesDataSize ? new uint8[roomTexturesDataSize] : NULL;
                         stream.raw(roomTexturesData, roomTexturesDataSize);
                         */
 
-                        tsubCount = stream.readBE32();
+                        tsubCount = stream.readLE32();//be32
                         tsub = new uint8[tsubCount];
                         stream.raw(tsub, sizeof(uint8) * tsubCount);
 
                         break;
                     case SAT_ROOMTPAL : {
-                        ASSERTV(stream.readBE32() == 0x00000003);
-                        stream.seek(stream.readBE32() * 3);
+                        ASSERTV(stream.readLE32() == 0x00000003);//be32
+                        stream.seek(stream.readLE32() * 3);//be32
                         break;
                     }
                     case SAT_ROOMSPAL : {
-                        ASSERTV(stream.readLE32() == 0x02000000);
-                        stream.seek(stream.readBE32() * 2);
+                        ASSERTV(stream.readLE32() == 0x02000000);//le32
+                        stream.seek(stream.readLE32() * 2);//be32
                         break;
                     }
                     case SAT_ROOMDATA :
-                        ASSERTV(stream.readBE32() == 0x00000044);
-                        roomsCount = stream.readBE32();
+                        ASSERTV(stream.readLE32() == 0x00000044); // be32
+                        roomsCount = stream.readLE32(); //be32
                         rooms = new Room[roomsCount];
                         memset(rooms, 0, sizeof(Room) * roomsCount);
                         break;
                     case SAT_ROOMNUMB :
-                        ASSERTV(stream.readBE32() == 0x00000000);
-                        room = &rooms[stream.readBE32()];
+                        ASSERTV(stream.readLE32() == 0x00000000);//be32
+                        room = &rooms[stream.readLE32()];//be32
                         break;
                     case SAT_MESHPOS_ :
                         ASSERT(room);
-                        room->info.x       = stream.readBE32();
-                        room->info.z       = stream.readBE32();
-                        room->info.yBottom = stream.readBE32();
-                        room->info.yTop    = stream.readBE32();
+                        room->info.x       = stream.readLE32();//be32
+                        room->info.z       = stream.readLE32();//.
+                        room->info.yBottom = stream.readLE32();//.
+                        room->info.yTop    = stream.readLE32();//.
                         break;
                     case SAT_MESHSIZE : {
                         ASSERT(room);
-                        uint32 flag = stream.readBE32();
+                        uint32 flag = stream.readLE32();//b
                         if (flag == 0x00000014) {
-                            room->meshesCount = stream.readBE32();
+                            room->meshesCount = stream.readLE32();//b
 
                             room->meshes = room->meshesCount ? new Room::Mesh[room->meshesCount] : NULL;
                             for (int i = 0; i < room->meshesCount; i++) {
                                 Room::Mesh &m = room->meshes[i];
-                                m.x = stream.readBE32();
-                                m.y = stream.readBE32();
-                                m.z = stream.readBE32();
-                                m.rotation.value = stream.readBE16();
-                                uint16 intensity = stream.readBE16();
-                                stream.readBE16();
+                                m.x = stream.readLE32();//b
+                                m.y = stream.readLE32();//b
+                                m.z = stream.readLE32();//b
+                                m.rotation.value = stream.readLE16();//b
+                                uint16 intensity = stream.readLE16();//b
+                                stream.readLE16();//b
                                 int value = clamp((intensity > 0x1FFF) ? 255 : (255 - (intensity >> 5)), 0, 255);
                                 m.color.r = m.color.g = m.color.b = value;
                                 m.color.a = 0;
-                                m.meshID = stream.readBE16();
+                                m.meshID = stream.readLE16();//b
                             }
 
                             //stream.seek(20 * count); // unknown
@@ -4074,19 +4304,19 @@ namespace TR {
 
                         Room::Data &data = room->data;
 
-                        data.size = stream.readBE32();
-                        data.vCount = stream.readBE16();
+                        data.size = stream.readLE32();//b
+                        data.vCount = stream.readLE16();//b
                         data.vertices = new Room::Data::Vertex[data.vCount];
                         for (int j = 0; j < data.vCount; j++) {
                             Room::Data::Vertex &v = data.vertices[j];
-                            v.pos.x      = stream.readBE16();
-                            v.pos.y      = stream.readBE16();
-                            v.pos.z      = stream.readBE16();
-                            v.color      = Color16(stream.readBE16());
+                            v.pos.x      = stream.readLE16();//b
+                            v.pos.y      = stream.readLE16();//b
+                            v.pos.z      = stream.readLE16();//b
+                            v.color      = Color16(stream.readLE16());//b
                             v.attributes = 0;
                         }
 
-                        data.fCount  = stream.readBE16();
+                        data.fCount  = stream.readLE16();//b
                         data.faces   = new Face[data.fCount];
                         data.sprites = new Room::Data::Sprite[data.fCount];
 
@@ -4101,10 +4331,10 @@ namespace TR {
 
                         int fIndex = 0;
 
-                        uint16 typesCount = stream.readBE16();
+                        uint16 typesCount = stream.readLE16();//b
                         for (int j = 0; j < typesCount; j++) {
-                            uint16 type  = stream.readBE16();
-                            uint16 count = stream.readBE16();
+                            uint16 type  = stream.readLE16();//b
+                            uint16 count = stream.readLE16();//b
                             //LOG(" type:%d count:%d\n", (int)type, (int)count);
                             for (int k = 0; k < count; k++) {
                                 ASSERT(fIndex < data.fCount);
@@ -4113,20 +4343,20 @@ namespace TR {
                                 switch (type) {
                                     case TYPE_SPRITE       : {
                                         Room::Data::Sprite &sprite = data.sprites[data.sCount++];
-                                        sprite.vertexIndex = (stream.readBE16() >> 4);
-                                        sprite.texture     = (stream.readBE16() >> 4);
+                                        sprite.vertexIndex = (stream.readLE16() >> 4);//b
+                                        sprite.texture     = (stream.readLE16() >> 4);//b
                                         fIndex--;
                                         break;
                                     }
                                     case TYPE_T_INVISIBLE  :
                                     case TYPE_T_SOLID      :
                                         f.triangle    = true;
-                                        f.vertices[0] = (stream.readBE16() >> 4);
-                                        f.vertices[1] = (stream.readBE16() >> 4);
-                                        f.vertices[2] = (stream.readBE16() >> 4);
+                                        f.vertices[0] = (stream.readLE16() >> 4);//b
+                                        f.vertices[1] = (stream.readLE16() >> 4);//b
+                                        f.vertices[2] = (stream.readLE16() >> 4);//b
                                         f.vertices[3] = 0;
                                         ASSERT(f.vertices[0] < data.vCount && f.vertices[1] < data.vCount && f.vertices[2] < data.vCount);
-                                        f.flags.value = stream.readBE16();
+                                        f.flags.value = stream.readLE16();//b
                                         if (type == TYPE_T_INVISIBLE) {
                                             fIndex--;
                                             continue;
@@ -4136,12 +4366,12 @@ namespace TR {
                                     case TYPE_R_INVISIBLE  :
                                     case TYPE_R_TRANSP     :
                                     case TYPE_R_SOLID      :
-                                        f.vertices[0] = (stream.readBE16() >> 4);
-                                        f.vertices[1] = (stream.readBE16() >> 4);
-                                        f.vertices[2] = (stream.readBE16() >> 4);
-                                        f.vertices[3] = (stream.readBE16() >> 4);
+                                        f.vertices[0] = (stream.readLE16() >> 4);//bbbbb
+                                        f.vertices[1] = (stream.readLE16() >> 4);
+                                        f.vertices[2] = (stream.readLE16() >> 4);
+                                        f.vertices[3] = (stream.readLE16() >> 4);
                                         ASSERT(f.vertices[0] < data.vCount && f.vertices[1] < data.vCount && f.vertices[2] < data.vCount && f.vertices[3] < data.vCount);
-                                        f.flags.value = stream.readBE16();
+                                        f.flags.value = stream.readLE16();
                                         if (type == TYPE_R_INVISIBLE) {
                                             fIndex--;
                                             continue;
@@ -4168,38 +4398,38 @@ namespace TR {
                         break;
                     }
                     case SAT_DOORDATA : {
-                        int32 roomIndex = stream.readBE32();
+                        int32 roomIndex = stream.readLE32();//
                         ASSERT(roomIndex < roomsCount);
                         Room *room = &rooms[roomIndex];
                         ASSERT(room && room->sectors == NULL);
 
-                        room->portalsCount = stream.readBE32();
+                        room->portalsCount = stream.readLE32();//
                         room->portals = new Room::Portal[room->portalsCount];
 
                         for (int j = 0; j < room->portalsCount; j++) {
                             Room::Portal &p = room->portals[j];
-                            p.roomIndex = stream.readBE16();
-                            p.normal.x  = stream.readBE16();
-                            p.normal.y  = stream.readBE16();
-                            p.normal.z  = stream.readBE16();
+                            p.roomIndex = stream.readLE16();//
+                            p.normal.x  = stream.readLE16();
+                            p.normal.y  = stream.readLE16();
+                            p.normal.z  = stream.readLE16();
                             for (int k = 0; k < 4; k++) {
-                                p.vertices[k].x = stream.readBE16();
-                                p.vertices[k].y = stream.readBE16();
-                                p.vertices[k].z = stream.readBE16();
+                                p.vertices[k].x = stream.readLE16();//
+                                p.vertices[k].y = stream.readLE16();
+                                p.vertices[k].z = stream.readLE16();
                             }
                         }
                         break;
                     }
                     case SAT_FLOORDAT :
                         ASSERT(room);
-                        room->zSectors = stream.readBE32();
-                        room->xSectors = stream.readBE32();
+                        room->zSectors = stream.readLE32();
+                        room->xSectors = stream.readLE32();
                         break;
                     case SAT_FLOORSIZ : {
-                        ASSERTV(stream.readBE32() == 0x00000008);
+                        ASSERTV(stream.readLE32() == 0x00000008);
                         ASSERT(room && room->sectors == NULL);
 
-                        int32 count = stream.readBE32();
+                        int32 count = stream.readLE32();
                         ASSERT(count == room->xSectors * room->zSectors);
 
                         room->sectors = count ? new Room::Sector[count] : NULL;
@@ -4207,8 +4437,8 @@ namespace TR {
                         for (int i = 0; i < count; i++) {
                             Room::Sector &s = room->sectors[i];
                             s.material   = 0;
-                            s.floorIndex = stream.readBE16();
-                            s.boxIndex   = stream.readBE16();
+                            s.floorIndex = stream.readLE16();
+                            s.boxIndex   = stream.readLE16();
                             stream.read(s.roomBelow);
                             stream.read(s.floor);
                             stream.read(s.roomAbove);
@@ -4217,71 +4447,71 @@ namespace TR {
                         break;
                     }
                     case SAT_FLORDATA :
-                        ASSERTV(stream.readBE32() == 0x00000002);
+                        ASSERTV(stream.readLE32() == 0x00000002);
                         ASSERT(floors == NULL);
-                        floorsCount = stream.readBE32();
+                        floorsCount = stream.readLE32();
                         floors = new FloorData[floorsCount];
                         for (int i = 0; i < floorsCount; i++)
-                            floors[i].value = stream.readBE16();
+                            floors[i].value = stream.readLE16();
                         break;
                     case SAT_LIGHTAMB :
                         ASSERT(room);
-                        room->ambient  = stream.readBE32();
-                        room->ambient2 = stream.readBE32();
+                        room->ambient  = stream.readLE32();
+                        room->ambient2 = stream.readLE32();
                         break;
                     case SAT_RM_FLIP_ : {
-                        ASSERTV(stream.readBE32() == 0x00000002);
-                        uint32 value = stream.readBE32();
+                        ASSERTV(stream.readLE32() == 0x00000002);
+                        uint32 value = stream.readLE32();
                         room->alternateRoom = value == 0xFFFFFFFF ? -1 : value;
                         break;
                     }
                     case SAT_RM_FLAGS : {
                         ASSERT(room);
-                        ASSERTV(stream.readBE32() == 0x00000002);
-                        uint32 value = stream.readBE32();
+                        ASSERTV(stream.readLE32() == 0x00000002);
+                        uint32 value = stream.readLE32();
                         room->flags.water = (value & 0x01) != 0;
                         break;
                     }
                     case SAT_LIGHTSIZ : {
-                        ASSERTV(stream.readBE32() == 0x00000014);
+                        ASSERTV(stream.readLE32() == 0x00000014);
                         ASSERT(room && room->lights == NULL);
-                        room->lightsCount = stream.readBE32();
+                        room->lightsCount = stream.readLE32();
                         room->lights = room->lightsCount ? new Room::Light[room->lightsCount] : NULL;
                         for (int i = 0; i < room->lightsCount; i++) {
                             Room::Light &light = room->lights[i];
-                            light.x = stream.readBE32();
-                            light.y = stream.readBE32();
-                            light.z = stream.readBE32();
+                            light.x = stream.readLE32();
+                            light.y = stream.readLE32();
+                            light.z = stream.readLE32();
 
-                            int16 intensity  = stream.readBE16();
-                            int16 intensity2 = stream.readBE16();
+                            int16 intensity  = stream.readLE16();
+                            int16 intensity2 = stream.readLE16();
                             ASSERTV(intensity == intensity2);
                             int value = clamp((intensity > 0x1FFF) ? 0 : (intensity >> 5), 0, 255);
                             light.color.r = light.color.g = light.color.b = value;
                             light.intensity = intensity;
 
-                            light.radius = stream.readBE32() * 2;
+                            light.radius = stream.readLE32() * 2;
                         }
                         break;
                     }
                     case SAT_CAMERAS_ :
-                        ASSERTV(stream.readBE32() == 0x00000010);
+                        ASSERTV(stream.readLE32() == 0x00000010);
                         ASSERT(cameras == NULL);
-                        camerasCount = stream.readBE32();
+                        camerasCount = stream.readLE32();
                         cameras = camerasCount ? new Camera[camerasCount] : NULL;
                         for (int i = 0; i < camerasCount; i++) {
                             Camera &cam = cameras[i];
-                            cam.x = stream.readBE32();
-                            cam.y = stream.readBE32();
-                            cam.z = stream.readBE32();
-                            cam.room = stream.readBE16();
-                            cam.flags.boxIndex = stream.readBE16();
+                            cam.x = stream.readLE32();
+                            cam.y = stream.readLE32();
+                            cam.z = stream.readLE32();
+                            cam.room = stream.readLE16();
+                            cam.flags.boxIndex = stream.readLE16();
                         }
                         break;
                     case SAT_SOUNDFX_ : {
-                        uint32 flag = stream.readBE32();
+                        uint32 flag = stream.readLE32();
                         if (flag == 0x00000000) { // SND
-                            ASSERTV(stream.readBE32() == 0x00000000);
+                            ASSERTV(stream.readLE32() == 0x00000000);
 
                             int pos = stream.pos;
                             stream.setPos(0);
@@ -4300,45 +4530,45 @@ namespace TR {
                         ASSERT(flag == 0x00000010); // SAT
 
                         ASSERT(soundSources == NULL);
-                        soundSourcesCount = stream.readBE32();
+                        soundSourcesCount = stream.readLE32();
                         soundSources = soundSourcesCount ? new SoundSource[soundSourcesCount] : NULL;
                         for (int i = 0; i < soundSourcesCount; i++) {
                             SoundSource &s = soundSources[i];
-                            s.x     = stream.readBE32();
-                            s.y     = stream.readBE32();
-                            s.z     = stream.readBE32();
-                            s.id    = stream.readBE16();
-                            s.flags = stream.readBE16();
+                            s.x     = stream.readLE32();
+                            s.y     = stream.readLE32();
+                            s.z     = stream.readLE32();
+                            s.id    = stream.readLE16();
+                            s.flags = stream.readLE16();
                         }
                         break;
                     }
                     case SAT_BOXES___ :
-                        ASSERTV(stream.readBE32() == 0x00000014);
+                        ASSERTV(stream.readLE32() == 0x00000014);
                         ASSERT(boxes == NULL);
-                        boxesCount = stream.readBE32();
+                        boxesCount = stream.readLE32();
                         boxes = boxesCount ? new Box[boxesCount] : NULL;
                         for (int i = 0; i < boxesCount; i++) {
                             Box &b = boxes[i];
-                            b.minZ          = stream.readBE32();
-                            b.maxZ          = stream.readBE32();
-                            b.minX          = stream.readBE32();
-                            b.maxX          = stream.readBE32();
-                            b.floor         = stream.readBE16();
-                            b.overlap.value = stream.readBE16();
+                            b.minZ          = stream.readLE32();
+                            b.maxZ          = stream.readLE32();
+                            b.minX          = stream.readLE32();
+                            b.maxX          = stream.readLE32();
+                            b.floor         = stream.readLE16();
+                            b.overlap.value = stream.readLE16();
                         }
                         break;
                     case SAT_OVERLAPS :
-                        ASSERTV(stream.readBE32() == 0x00000002);
+                        ASSERTV(stream.readLE32() == 0x00000002);
                         ASSERT(overlaps == NULL);
-                        overlapsCount = stream.readBE32();
+                        overlapsCount = stream.readLE32();
                         overlaps = overlapsCount ? new Overlap[overlapsCount] : NULL;
                         for (int i = 0; i < overlapsCount; i++)
-                            overlaps[i].value = stream.readBE16();
+                            overlaps[i].value = stream.readLE16();
                         break;
                     case SAT_GND_ZONE :
                     case SAT_GND_ZON2 :
                     case SAT_FLY_ZONE : {
-                        ASSERTV(stream.readBE32() == 0x00000002);
+                        ASSERTV(stream.readLE32() == 0x00000002);
                         uint16 **ptr;
 
                         switch (chunkType) {
@@ -4351,20 +4581,20 @@ namespace TR {
                         ASSERT(ptr != NULL);
                         ASSERT(*ptr == NULL);
 
-                        int32 count = stream.readBE32();
+                        int32 count = stream.readLE32();
                         *ptr = count ? new uint16[count] : NULL;
                         for (int i = 0; i < count; i++)
-                            (*ptr)[i] = stream.readBE16();
+                            (*ptr)[i] = stream.readLE16();
                         break;
                     }
                     case SAT_ARANGES_ : {
-                        ASSERTV(stream.readBE32() == 0x00000008);
-                        animTexturesCount = stream.readBE32();
+                        ASSERTV(stream.readLE32() == 0x00000008);
+                        animTexturesCount = stream.readLE32();
                         animTextures = new AnimTexture[animTexturesCount];
                         for (int i = 0; i < animTexturesCount; i++) {
                             AnimTexture &animTex = animTextures[i];
-                            uint32 first = stream.readBE32();
-                            uint32 last  = stream.readBE32();
+                            uint32 first = stream.readLE32();
+                            uint32 last  = stream.readLE32();
                             animTex.count    = last - first + 1;
                             animTex.textures = new uint16[animTex.count];
                             for (int j = 0; j < animTex.count; j++)
@@ -4373,169 +4603,169 @@ namespace TR {
                         break;
                     }
                     case SAT_ITEMDATA : {
-                        ASSERTV(stream.readBE32() == 0x00000014);
-                        entitiesBaseCount = stream.readBE32();
+                        ASSERTV(stream.readLE32() == 0x00000014);
+                        entitiesBaseCount = stream.readLE32();
                         entitiesCount = entitiesBaseCount + MAX_RESERVED_ENTITIES;
                         entities = new Entity[entitiesCount];
                         for (int i = 0; i < entitiesBaseCount; i++) {
                             Entity &e = entities[i];
-                            e.type = Entity::Type(stream.readBE16());
-                            e.room = stream.readBE16();
-                            e.x    = stream.readBE32();
-                            e.y    = stream.readBE32();
-                            e.z    = stream.readBE32();
-                            e.rotation.value = stream.readBE16();
-                            e.intensity      = stream.readBE16();
-                            e.intensity2     = stream.readBE16();
-                            e.flags.value    = stream.readBE16();
+                            e.type = Entity::Type(stream.readLE16());
+                            e.room = stream.readLE16();
+                            e.x    = stream.readLE32();
+                            e.y    = stream.readLE32();
+                            e.z    = stream.readLE32();
+                            e.rotation.value = stream.readLE16();
+                            e.intensity      = stream.readLE16();
+                            e.intensity2     = stream.readLE16();
+                            e.flags.value    = stream.readLE16();
                         }
                         break;
                     }
                     case SAT_ROOMEND_ :
-                        ASSERTV(stream.readBE32() == 0x00000000);
-                        ASSERTV(stream.readBE32() == 0x00000000);
+                        ASSERTV(stream.readLE32() == 0x00000000);
+                        ASSERTV(stream.readLE32() == 0x00000000);
                         break;
                 // SAD
                     case SAD_OBJFILE_ :
-                        ASSERTV(stream.readBE32() == 0x00000000);
-                        ASSERTV(stream.readBE32() == 0x00000020);
+                        ASSERTV(stream.readLE32() == 0x00000000);
+                        ASSERTV(stream.readLE32() == 0x00000020);
                         break;
                     case SAD_ANIMS___ :
-                        ASSERTV(stream.readBE32() == 0x00000022);
+                        ASSERTV(stream.readLE32() == 0x00000022);
                         ASSERT(anims == NULL);
-                        animsCount = stream.readBE32();
+                        animsCount = stream.readLE32();
                         anims = animsCount ? new Animation[animsCount] : NULL;
                         for (int i = 0; i < animsCount; i++) {
                             Animation &anim = anims[i];
-                            anim.frameOffset   = stream.readBE32();
+                            anim.frameOffset   = stream.readLE32();
                             anim.frameSize     = stream.read();
                             anim.frameRate     = stream.read();
-                            anim.state         = stream.readBE16();
-                            anim.speed.H       = stream.readBE16();
-                            anim.speed.L       = stream.readBE16();
-                            anim.accel.H       = stream.readBE16();
-                            anim.accel.L       = stream.readBE16();
-                            anim.frameStart    = stream.readBE16();
-                            anim.frameEnd      = stream.readBE16();
-                            anim.nextAnimation = stream.readBE16();
-                            anim.nextFrame     = stream.readBE16();
-                            anim.scCount       = stream.readBE16();
-                            anim.scOffset      = stream.readBE16();
-                            anim.acCount       = stream.readBE16();
-                            anim.animCommand   = stream.readBE16();
+                            anim.state         = stream.readLE16();
+                            anim.speed.H       = stream.readLE16();
+                            anim.speed.L       = stream.readLE16();
+                            anim.accel.H       = stream.readLE16();
+                            anim.accel.L       = stream.readLE16();
+                            anim.frameStart    = stream.readLE16();
+                            anim.frameEnd      = stream.readLE16();
+                            anim.nextAnimation = stream.readLE16();
+                            anim.nextFrame     = stream.readLE16();
+                            anim.scCount       = stream.readLE16();
+                            anim.scOffset      = stream.readLE16();
+                            anim.acCount       = stream.readLE16();
+                            anim.animCommand   = stream.readLE16();
                         }
                         break;
                     case SAD_CHANGES_ :
-                        ASSERTV(stream.readBE32() == 0x00000008);
+                        ASSERTV(stream.readLE32() == 0x00000008);
                         ASSERT(states == NULL);
-                        statesCount = stream.readBE32();
+                        statesCount = stream.readLE32();
                         states = statesCount ? new AnimState[statesCount] : NULL;
                         for (int i = 0; i < statesCount; i++) {
                             AnimState &state = states[i];
-                            state.state         = stream.readBE16();
-                            state.rangesCount   = stream.readBE16();
-                            state.rangesOffset  = stream.readBE16();
-                            ASSERTV(stream.readBE16() == state.rangesOffset); // dummy
+                            state.state         = stream.readLE16();
+                            state.rangesCount   = stream.readLE16();
+                            state.rangesOffset  = stream.readLE16();
+                            ASSERTV(stream.readLE16() == state.rangesOffset); // dummy
                         }
                         break;
                     case SAD_RANGES_z :
-                        ASSERTV(stream.readBE32() == 0x00000008);
+                        ASSERTV(stream.readLE32() == 0x00000008);
                         ASSERT(ranges == NULL);
-                        rangesCount = stream.readBE32();
+                        rangesCount = stream.readLE32();
                         ranges = rangesCount ? new AnimRange[rangesCount] : NULL;
                         for (int i = 0; i < rangesCount; i++) {
                             AnimRange &range = ranges[i];
-                            range.low           = stream.readBE16();
-                            range.high          = stream.readBE16();
-                            range.nextAnimation = stream.readBE16();
-                            range.nextFrame     = stream.readBE16();
+                            range.low           = stream.readLE16();
+                            range.high          = stream.readLE16();
+                            range.nextAnimation = stream.readLE16();
+                            range.nextFrame     = stream.readLE16();
                         }
                         break;
                     case SAD_COMMANDS :
-                        ASSERTV(stream.readBE32() == 0x00000002);
+                        ASSERTV(stream.readLE32() == 0x00000002);
                         ASSERT(commands == NULL);
-                        commandsCount = stream.readBE32();
+                        commandsCount = stream.readLE32();
                         commands = commandsCount ? new int16[commandsCount] : NULL;
                         for (int i = 0; i < commandsCount; i++)
-                            commands[i] = stream.readBE16();
+                            commands[i] = stream.readLE16();
                         break;
                     case SAD_ANIBONES :
-                        ASSERTV(stream.readBE32() == 0x00000004);
+                        ASSERTV(stream.readLE32() == 0x00000004);
                         ASSERT(nodesData == NULL);
-                        nodesDataSize = stream.readBE32();
+                        nodesDataSize = stream.readLE32();
                         nodesData = nodesDataSize ? new uint32[nodesDataSize] : NULL;
                         for (int i = 0; i < nodesDataSize; i++)
-                            nodesData[i] = stream.readBE32();
+                            nodesData[i] = stream.readLE32();
                         break;
                     case SAD_ANIMOBJ_ :
-                        ASSERTV(stream.readBE32() == 0x00000038);
+                        ASSERTV(stream.readLE32() == 0x00000038);
                         ASSERT(models == NULL);
-                        modelsCount = stream.readBE32();
+                        modelsCount = stream.readLE32();
                         models = modelsCount ? new Model[modelsCount] : NULL;
                         for (int i = 0; i < modelsCount; i++) {
                             Model &model = models[i];
-                            ASSERTV(stream.readBE16() == 0x0000);
+                            ASSERTV(stream.readLE16() == 0x0000);
                             model.index     = i;
-                            model.type      = Entity::Type(stream.readBE16());
-                            model.mCount    = stream.readBE16();
-                            model.mStart    = stream.readBE16();
-                            model.node      = stream.readBE32();
-                            model.frame     = stream.readBE32();
-                            model.animation = stream.readBE16();
-                            ASSERTV(stream.readBE16() == model.animation);
+                            model.type      = Entity::Type(stream.readLE16());
+                            model.mCount    = stream.readLE16();
+                            model.mStart    = stream.readLE16();
+                            model.node      = stream.readLE32();
+                            model.frame     = stream.readLE32();
+                            model.animation = stream.readLE16();
+                            ASSERTV(stream.readLE16() == model.animation);
                         }
                         break;
                     case SAD_STATOBJ_ :
-                        ASSERTV(stream.readBE32() == 0x00000020);
+                        ASSERTV(stream.readLE32() == 0x00000020);
                         ASSERT(staticMeshes == NULL);
-                        staticMeshesCount = stream.readBE32();
+                        staticMeshesCount = stream.readLE32();
                         staticMeshes = staticMeshesCount ? new StaticMesh[staticMeshesCount] : NULL;
                         for (int i = 0; i < staticMeshesCount; i++) {
                             StaticMesh &mesh = staticMeshes[i];
-                            mesh.id        = stream.readBE32();
-                            mesh.mesh      = stream.readBE16();
-                            mesh.vbox.minX = stream.readBE16();
-                            mesh.vbox.maxX = stream.readBE16();
-                            mesh.vbox.minY = stream.readBE16();
-                            mesh.vbox.maxY = stream.readBE16();
-                            mesh.vbox.minZ = stream.readBE16();
-                            mesh.vbox.maxZ = stream.readBE16();
-                            mesh.cbox.minX = stream.readBE16();
-                            mesh.cbox.maxX = stream.readBE16();
-                            mesh.cbox.minY = stream.readBE16();
-                            mesh.cbox.maxY = stream.readBE16();
-                            mesh.cbox.minZ = stream.readBE16();
-                            mesh.cbox.maxZ = stream.readBE16();
-                            mesh.flags     = stream.readBE16();
+                            mesh.id        = stream.readLE32();
+                            mesh.mesh      = stream.readLE16();
+                            mesh.vbox.minX = stream.readLE16();
+                            mesh.vbox.maxX = stream.readLE16();
+                            mesh.vbox.minY = stream.readLE16();
+                            mesh.vbox.maxY = stream.readLE16();
+                            mesh.vbox.minZ = stream.readLE16();
+                            mesh.vbox.maxZ = stream.readLE16();
+                            mesh.cbox.minX = stream.readLE16();
+                            mesh.cbox.maxX = stream.readLE16();
+                            mesh.cbox.minY = stream.readLE16();
+                            mesh.cbox.maxY = stream.readLE16();
+                            mesh.cbox.minZ = stream.readLE16();
+                            mesh.cbox.maxZ = stream.readLE16();
+                            mesh.flags     = stream.readLE16();
                         }
                         break;
                     case SAD_FRAMES__ :
-                        ASSERTV(stream.readBE32() == 0x00000002);
+                        ASSERTV(stream.readLE32() == 0x00000002);
                         ASSERT(frameData == NULL);
-                        frameDataSize = stream.readBE32();
+                        frameDataSize = stream.readLE32();
                         frameData = frameDataSize ? new uint16[frameDataSize] : NULL;
                         for (int i = 0; i < frameDataSize; i++) 
-                            frameData[i] = stream.readBE16();
+                            frameData[i] = stream.readLE16();
                         break;
                     case SAD_MESHPTRS :
-                        ASSERTV(stream.readBE32() == 0x00000004);
+                        ASSERTV(stream.readLE32() == 0x00000004);
                         ASSERT(meshOffsets == NULL);
-                        meshOffsetsCount = stream.readBE32();
+                        meshOffsetsCount = stream.readLE32();
                         meshOffsets = meshOffsetsCount ? new int32[meshOffsetsCount] : NULL;
                         for (int i = 0; i < meshOffsetsCount; i++) 
-                            meshOffsets[i] = stream.readBE32();
+                            meshOffsets[i] = stream.readLE32();
                         break;
                     case SAD_MESHDATA :
-                        ASSERTV(stream.readBE32() == 0x00000002);
+                        ASSERTV(stream.readLE32() == 0x00000002);
                         ASSERT(meshData == NULL);
-                        meshDataSize = stream.readBE32();
+                        meshDataSize = stream.readLE32();
                         meshData = meshDataSize ? new uint16[meshDataSize] : NULL;
                         stream.raw(meshData, sizeof(uint16) * meshDataSize);
                         break;
                     case SAD_OTEXTINF :
-                        ASSERTV(stream.readBE32() == 0x00000010);
+                        ASSERTV(stream.readLE32() == 0x00000010);
                         ASSERT(objectTextures == NULL);
-                        objectTexturesCount = stream.readBE32();
+                        objectTexturesCount = stream.readLE32();
                         objectTextures = objectTexturesCount ? new TextureInfo[objectTexturesCount * 5] : NULL;
                         for (int i = 0; i < objectTexturesCount; i++)
                             readObjectTex(stream, objectTextures[i], TEX_TYPE_OBJECT);
@@ -4543,15 +4773,15 @@ namespace TR {
                         expandObjectTex(objectTextures, objectTexturesCount);
                         break;
                     case SAD_OTEXTDAT : {
-                        ASSERTV(stream.readBE32() == 0x00000001);
-                        objectTexturesDataSize = stream.readBE32();
+                        ASSERTV(stream.readLE32() == 0x00000001);
+                        objectTexturesDataSize = stream.readLE32();
                         objectTexturesData = objectTexturesDataSize ? new uint8[objectTexturesDataSize] : NULL;
                         stream.raw(objectTexturesData, objectTexturesDataSize);
                         break;
                     }
                     case SAD_ITEXTINF : {
-                        ASSERTV(stream.readBE32() == 0x00000014);
-                        itemTexturesCount = stream.readBE32();
+                        ASSERTV(stream.readLE32() == 0x00000014);
+                        itemTexturesCount = stream.readLE32();
                         itemTextures = itemTexturesCount ? new TextureInfo[itemTexturesCount * 5] : NULL;
                         for (int i = 0; i < itemTexturesCount; i++)
                             readObjectTex(stream, itemTextures[i], TEX_TYPE_ITEM);
@@ -4560,81 +4790,81 @@ namespace TR {
                         break;
                     }
                     case SAD_ITEXTDAT : {
-                        ASSERTV(stream.readBE32() == 0x00000001);
-                        itemTexturesDataSize = stream.readBE32();
+                        ASSERTV(stream.readLE32() == 0x00000001);
+                        itemTexturesDataSize = stream.readLE32();
                         itemTexturesData = itemTexturesDataSize ? new uint8[itemTexturesDataSize] : NULL;
                         stream.raw(itemTexturesData, itemTexturesDataSize);
                         break;
                     }
                     case SAD_OBJEND__ :
-                        ASSERTV(stream.readBE32() == 0x00000000);
-                        ASSERTV(stream.readBE32() == 0x00000000);
+                        ASSERTV(stream.readLE32() == 0x00000000);
+                        ASSERTV(stream.readLE32() == 0x00000000);
                         break;
                 // SPR
                     case SPR_SPRFILE_ :
-                        ASSERTV(stream.readBE32() == 0x00000000);
-                        ASSERTV(stream.readBE32() == 0x00000020);
+                        ASSERTV(stream.readLE32() == 0x00000000);
+                        ASSERTV(stream.readLE32() == 0x00000020);
                         break;
                     case SPR_SPRITINF : {
-                        ASSERTV(stream.readBE32() == 0x00000010);
-                        spriteTexturesCount = stream.readBE32();
+                        ASSERTV(stream.readLE32() == 0x00000010);
+                        spriteTexturesCount = stream.readLE32();
                         spriteTextures = spriteTexturesCount ? new TextureInfo[spriteTexturesCount] : NULL;
                         for (int i = 0; i < spriteTexturesCount; i++)
                             readSpriteTex(stream, spriteTextures[i]);
                         break;
                     }
                     case SPR_SPRITDAT : {
-                        ASSERTV(stream.readBE32() == 0x00000001);
-                        spriteTexturesDataSize = stream.readBE32();
+                        ASSERTV(stream.readLE32() == 0x00000001);
+                        spriteTexturesDataSize = stream.readLE32();
                         spriteTexturesData = spriteTexturesDataSize ? new uint8[spriteTexturesDataSize] : NULL;
                         stream.raw(spriteTexturesData, spriteTexturesDataSize);
                         break;
                     }
                     case SPR_OBJECTS_ : {
-                        ASSERTV(stream.readBE32() == 0x00000000);
-                        spriteSequencesCount = stream.readBE32();
+                        ASSERTV(stream.readLE32() == 0x00000000);
+                        spriteSequencesCount = stream.readLE32();
                         spriteSequences = spriteSequencesCount ? new SpriteSequence[spriteSequencesCount] : NULL;
                         for (int i = 0; i < spriteSequencesCount; i++) {
                             SpriteSequence &s = spriteSequences[i];
-                            ASSERTV(stream.readBE16() == 0);
-                            s.type   = Entity::remap(version, Entity::Type(stream.readBE16()));
-                            s.sCount = (s.type >= Entity::TR1_TYPE_MAX) ? 1 : -stream.readBE16();
-                            s.sStart = stream.readBE16();
+                            ASSERTV(stream.readLE16() == 0);
+                            s.type   = Entity::remap(version, Entity::Type(stream.readLE16()));
+                            s.sCount = (s.type >= Entity::TR1_TYPE_MAX) ? 1 : -stream.readLE16();
+                            s.sStart = stream.readLE16();
                             s.transp = 1;
                         }
                         break;
                     }
                     case SPR_SPRITEND :
-                        ASSERTV(stream.readBE32() == 0x00000000);
-                        ASSERTV(stream.readBE32() == 0x00000000);
+                        ASSERTV(stream.readLE32() == 0x00000000);
+                        ASSERTV(stream.readLE32() == 0x00000000);
                         break;
                 // SND
                     case SND_SAMPLUT_ : {
-                        ASSERTV(stream.readBE32() == 0x00000002);
-                        int count = stream.readBE32();
+                        ASSERTV(stream.readLE32() == 0x00000002);
+                        int count = stream.readLE32();
                         soundsMap = new int16[count];
                         for (int i = 0; i < count; i++)
-                            soundsMap[i] = stream.readBE16();
+                            soundsMap[i] = stream.readLE16();
                         break;
                     }
                     case SND_SAMPINFS : {
-                        ASSERTV(stream.readBE32() == 0x00000008);
-                        soundsInfoCount = stream.readBE32();
+                        ASSERTV(stream.readLE32() == 0x00000008);
+                        soundsInfoCount = stream.readLE32();
                         soundsInfo = soundsInfoCount ? new SoundInfo[soundsInfoCount] : NULL;
                         for (int i = 0; i < soundsInfoCount; i++) {
                             SoundInfo &s = soundsInfo[i];
-                            s.index       = stream.readBE16();
-                            s.volume      = float(stream.readBE16()) / 0x7FFF;
-                            s.chance      = float(stream.readBE16()) / 0xFFFF;
+                            s.index       = stream.readLE16();
+                            s.volume      = float(stream.readLE16()) / 0x7FFF;
+                            s.chance      = float(stream.readLE16()) / 0xFFFF;
                             s.range       = 8 * 1024;
                             s.pitch       = 0.2f;
-                            s.flags.value = stream.readBE16();
+                            s.flags.value = stream.readLE16();
                         }
                         break;
                     }
                     case SND_SAMPLE__ : {
-                        int32 index = stream.readBE32();
-                        int32 size  = stream.readBE32();
+                        int32 index = stream.readLE32();
+                        int32 size  = stream.readLE32();
                         ASSERT(index < soundOffsetsCount);
                         soundOffsets[index] = stream.pos - 4;
                         soundSize[index]    = size - 4; // trim last samples (clicks)
@@ -4643,8 +4873,8 @@ namespace TR {
                         break;
                     }
                     case SND_ENDFILEz :
-                        ASSERTV(stream.readBE32() == 0x00000000);
-                        ASSERTV(stream.readBE32() == 0x00000000);
+                        ASSERTV(stream.readLE32() == 0x00000000);
+                        ASSERTV(stream.readLE32() == 0x00000000);
                         break;
                     default : {
                         char buf[9];
@@ -4711,14 +4941,16 @@ namespace TR {
                 }
             }
 
+			
             for (int i = 0; i < modelsCount; i++) {
                 Model &model = models[i];
                 model.type = Entity::remap(version, model.type);
-
+				
                 for (int j = 0; j < model.mCount; j++) {
                     initMesh(model.mStart + j, model.type);
                 }
-            }
+
+			}
 
             for (int i = 0; i < staticMeshesCount; i++) {
                 initMesh(staticMeshes[i].mesh);
@@ -4807,10 +5039,11 @@ namespace TR {
             gSpriteTextures      = spriteTextures;
             gObjectTexturesCount = objectTexturesCount;
             gSpriteTexturesCount = spriteTexturesCount;
-        }
+		}
 
         void readSamples(Stream &stream) {
-            stream.read(soundData, soundDataSize = stream.size);
+			soundDataSize = stream.size;
+            stream.read(soundData, soundDataSize);
 
             int32 dataOffsets[512];
             int32 dataOffsetsCount = 0;
@@ -5093,38 +5326,51 @@ namespace TR {
             f.triangle = triangle;
 
             for (int i = 0; i < (triangle ? 3 : 4); i++) {
-                stream.read(f.vertices[i]);
-            }
+				if (stream.fd > -1) {          
+					stream_read16(f.vertices[i]);
+				} else {			
+					stream.read(f.vertices[i]);
+				}
+			}
 
             if (triangle) {
                 f.vertices[3] = 0;
             }
 
-            stream.read(f.flags.value);
+			if (stream.fd > -1) {             
+				stream_read16(f.flags.value);
+			} else {
+				stream.read(f.flags.value);
+			}
 
-            if (!isRoomMesh && (version & (VER_TR4 | VER_TR5))) {
+			if (!isRoomMesh && (version & (VER_TR4 | VER_TR5))) {
                 stream.read(f.effects.value);
             }
 
             f.colored = colored;
         }
-
+		
         void readRoom(Stream &stream, int roomIndex) {
             Room &r = rooms[roomIndex];
             Room::Data &d = r.data;
         // room info
-            stream.read(r.info);
+			stream_read32(r.info.x);
+			stream_read32(r.info.z);
+			stream_read32(r.info.yBottom);
+			stream_read32(r.info.yTop);
+			//stream.read(r.info);
         // room data
-            stream.read(d.size);
+			stream_read32(d.size);
+			// stream.read(d.size);
             int startOffset = stream.pos;
-            if (version == VER_TR1_PSX) {
+
+			/*			if (version == VER_TR1_PSX) {
                 stream.seek(2);
-            }
+            }*/
 
             // only for TR3 PSX
             int32 partsCount;
             int32 parts[16];
-
             if (version == VER_TR3_PSX) {
                 d.vCount = d.tCount = d.rCount = d.fCount = 0;
             // pre-calculate number of vertices, triangles and rectangles for TR3 PSX format
@@ -5166,7 +5412,8 @@ namespace TR {
 
                 d.vCount = d.fCount = 0;
             } else {
-                d.vertices = stream.read(d.vCount) ? new Room::Data::Vertex[d.vCount] : NULL;
+				stream_read16(d.vCount);
+                d.vertices = d.vCount ? new Room::Data::Vertex[d.vCount] : NULL;
             }
 
             if (version == VER_TR3_PSX) {
@@ -5267,11 +5514,16 @@ namespace TR {
 
                     if (version == VER_TR2_PSX) {
                         struct {
+		//					union {
                             uint32 lighting:8, attributes:8, z:5, y:5, x:5, w:1;
-                        } cv;
+	//						uint32 data;
+			//				};
+						} cv;
 
                         stream.raw(&cv, sizeof(cv));
 
+//						cv.data = swap32(cv.data);
+						
                         v.pos.x       = (cv.x << 10);
                         v.pos.y       = (cv.y << 8) + r.info.yTop;
                         v.pos.z       = (cv.z << 10);
@@ -5280,10 +5532,10 @@ namespace TR {
 
                         lighting = 0x1FFF - (lighting << 5); // TODO: calc lighting by lighting = [0..255] and mode = [0..31] values
                     } else {
-                        stream.read(v.pos.x);
-                        stream.read(v.pos.y);
-                        stream.read(v.pos.z);
-                        stream.read(lighting);
+                        stream_read16(v.pos.x);
+                        stream_read16(v.pos.y);
+                        stream_read16(v.pos.z);
+                        stream_read16(lighting);
 
                         if (version == VER_TR2_PC || version == VER_TR3_PC || version == VER_TR4_PC) {
                             stream.read(v.attributes);
@@ -5322,9 +5574,10 @@ namespace TR {
                     if ((stream.pos - startOffset) % 4) stream.seek(2);
                     stream.seek(sizeof(uint16) * 4 * d.rCount);
                 } else {
-                    stream.seek(stream.read(d.rCount) * FACE4_SIZE); // uint32 colored (not existing in file)
+					stream_read16(d.rCount);
+                    stream.seek(d.rCount * FACE4_SIZE); // uint32 colored (not existing in file)
                 }
-                stream.read(d.tCount);
+                stream_read16(d.tCount);
                 stream.setPos(tmp);
 
                 d.fCount = d.rCount + d.tCount;
@@ -5333,7 +5586,7 @@ namespace TR {
                 int idx = 0;
 
                 int16 tmpCount;
-                stream.read(tmpCount);
+                stream_read16(tmpCount);
                 ASSERT(tmpCount == d.rCount);
 
                 if (version == VER_TR2_PSX) {
@@ -5358,7 +5611,7 @@ namespace TR {
                     }
                 }
 
-                stream.read(tmpCount);
+                stream_read16(tmpCount);
                 ASSERT(tmpCount == d.tCount);
 
                 if (version == VER_TR2_PSX) {
@@ -5393,8 +5646,14 @@ namespace TR {
                 d.sprites = NULL;
                 d.sCount  = 0;
             } else {
-                stream.read(d.sprites, stream.read(d.sCount));
-            }
+				stream_read16(d.sCount);
+				d.sprites = new Room::Data::Sprite[d.sCount];
+				for(int i=0;i<d.sCount;i++) {
+					Room::Data::Sprite& nextSprite = d.sprites[i];
+					stream_read16(nextSprite.vertexIndex);
+					stream_read16(nextSprite.texture);
+				}
+			}
 
             if (version == VER_TR3_PSX && partsCount != 0) {
                 stream.seek(4); // skip unknown shit
@@ -5404,8 +5663,34 @@ namespace TR {
             stream.setPos(startOffset + d.size * 2);
 
         // portals
-            stream.read(r.portals, stream.read(r.portalsCount));
+			stream_read16(r.portalsCount);
+            r.portals = new Room::Portal[r.portalsCount];
 
+            for (int j = 0; j < r.portalsCount; j++) {
+                Room::Portal &p = r.portals[j];
+                stream_read16(p.roomIndex);
+                stream_read16(p.normal.x);
+                stream_read16(p.normal.y);
+                stream_read16(p.normal.z);
+            /*    stream_read16(p.vertices[0].x);
+                stream_read16(p.vertices[0].y);
+                stream_read16(p.vertices[0].z);
+                stream_read16(p.vertices[1].x);
+                stream_read16(p.vertices[1].y);
+                stream_read16(p.vertices[1].z);
+                stream_read16(p.vertices[2].x);
+                stream_read16(p.vertices[2].y);
+                stream_read16(p.vertices[2].z);
+                stream_read16(p.vertices[3].x);
+                stream_read16(p.vertices[3].y);
+                stream_read16(p.vertices[3].z);
+				*/
+				for (int k = 0; k < 4; k++) {
+                    stream_read16(p.vertices[k].x);
+                    stream_read16(p.vertices[k].y);
+                    stream_read16(p.vertices[k].z);
+                }
+            }
             if (version == VER_TR2_PSX || version == VER_TR3_PSX) {
                 for (int i = 0; i < r.portalsCount; i++) {
                     r.portals[i].vertices[0].y += r.info.yTop;
@@ -5416,15 +5701,15 @@ namespace TR {
             }
 
         // sectors
-            stream.read(r.zSectors);
-            stream.read(r.xSectors);
+            stream_read16(r.zSectors);
+            stream_read16(r.xSectors);
             r.sectors = (r.zSectors * r.xSectors > 0) ? new Room::Sector[r.zSectors * r.xSectors] : NULL;
 
             for (int i = 0; i < r.zSectors * r.xSectors; i++) {
                 Room::Sector &s = r.sectors[i];
 
-                stream.read(s.floorIndex);
-                stream.read(s.boxIndex);
+                stream_read16(s.floorIndex);
+                stream_read16(s.boxIndex);
                 stream.read(s.roomBelow);
                 stream.read(s.floor);
                 stream.read(s.roomAbove);
@@ -5442,7 +5727,7 @@ namespace TR {
             }
 
         // ambient light luminance
-            stream.read(r.ambient);
+            stream_read16(r.ambient);
 
             if (version != VER_TR3_PSX) {
                 if (version & (VER_TR2 | VER_TR3 | VER_TR4))
@@ -5452,16 +5737,17 @@ namespace TR {
                     stream.read(r.lightMode);
             } else {
                 r.ambient = 0x1FFF - r.ambient;
-                stream.read(r.ambient2);
+                stream_read16(r.ambient2);
             }
 
         // lights
-            r.lights = stream.read(r.lightsCount) ? new Room::Light[r.lightsCount] : NULL;
+			stream_read16(r.lightsCount);
+            r.lights = r.lightsCount ? new Room::Light[r.lightsCount] : NULL;
             for (int i = 0; i < r.lightsCount; i++) {
                 Room::Light &light = r.lights[i];
-                stream.read(light.x);
-                stream.read(light.y);
-                stream.read(light.z);
+                stream_read32(light.x);
+                stream_read32(light.y);
+                stream_read32(light.z);
 
                 uint16 intensity;
 
@@ -5483,7 +5769,7 @@ namespace TR {
                     stream.read(light.dir);
                     light.radius = uint32(light.length);
                 } else {
-                    stream.read(intensity);
+                    stream_read32(intensity);
                 }
 
                 if (version == VER_TR1_PSX) {
@@ -5495,7 +5781,7 @@ namespace TR {
                 }
 
                 if (version != VER_TR4_PC) {
-                    stream.read(light.radius);
+                    stream_read32(light.radius);
                 }
 
                 if (version & VER_TR2) {
@@ -5516,14 +5802,14 @@ namespace TR {
                 light.radius *= 2;
             }
         // meshes
-            stream.read(r.meshesCount);
+            stream_read16(r.meshesCount);
             r.meshes = r.meshesCount ? new Room::Mesh[r.meshesCount] : NULL;
             for (int i = 0; i < r.meshesCount; i++) {
                 Room::Mesh &m = r.meshes[i];
-                stream.read(m.x);
-                stream.read(m.y);
-                stream.read(m.z);
-                stream.read(m.rotation.value);
+                stream_read32(m.x);
+                stream_read32(m.y);
+                stream_read32(m.z);
+                stream_read16(m.rotation.value);
                 if (version & (VER_TR3 | VER_TR4)) {
                     Color16 color;
                     stream.read(color.value);
@@ -5535,7 +5821,7 @@ namespace TR {
                     }
 
                     uint16 intensity;
-                    stream.read(intensity);
+                    stream_read16(intensity);
                     if ((version & VER_VERSION) < VER_TR3) {
                         int value = clamp((intensity > 0x1FFF) ? 255 : (255 - (intensity >> 5)), 0, 255);
                         m.color.r = m.color.g = m.color.b = value;
@@ -5543,15 +5829,15 @@ namespace TR {
                     }
                 }
 
-                stream.read(m.meshID);
+                stream_read16(m.meshID);
                 if (version == VER_TR1_PSX) {
                     stream.seek(2); // skip padding
                 }
             }
 
         // misc flags
-            stream.read(r.alternateRoom);
-            stream.read(r.flags.value);
+            stream_read16(r.alternateRoom);
+            stream_read16(r.flags.value);
             if (version & (VER_TR3 | VER_TR4)) {
                 stream.read(r.waterScheme);
                 stream.read(r.reverbType);
@@ -5562,14 +5848,14 @@ namespace TR {
         }
 
         void initMesh(int mIndex, Entity::Type type = Entity::NONE) {
-            int offset = meshOffsets[mIndex];
+			int offset = meshOffsets[mIndex];
             for (int i = 0; i < meshesCount; i++) {
-                if (meshes[i].offset == offset) {
-                    return;
+				if (meshes[i].offset == offset) {
+					return;
                 }
             }
 
-            Stream stream(NULL, &meshData[offset / 2], 1024 * 1024);
+            Stream stream(NULL, &meshData[offset / 2], 512 * 1024);
 
             Mesh &mesh = meshes[meshesCount++];
             mesh.offset = offset;
@@ -5586,9 +5872,10 @@ namespace TR {
                 stream.read(mesh.vCount);
                 stream.read(mesh.rCount);
             } else {
-                stream.read(mesh.center);
+                stream.read(mesh.center.x);
+                stream.read(mesh.center.y);
+                stream.read(mesh.center.z);
                 stream.read(mesh.radius);
-
                 if (version == VER_TR3_PSX) {
                     uint8  tmp;
                     uint16 tmpOffset;
@@ -5598,172 +5885,11 @@ namespace TR {
                     fOffset          = stream.pos + tmpOffset;
                 } else {
                     stream.read(mesh.flags.value);
-                    stream.read(mesh.vCount);
-                }
-
-                if (version == VER_TR1_SAT) {
-                    mesh.center.x    = swap16(mesh.center.x);
-                    mesh.center.y    = swap16(mesh.center.y);
-                    mesh.center.z    = swap16(mesh.center.z);
-                    mesh.radius      = swap16(mesh.radius);
-                    mesh.flags.value = swap16(mesh.flags.value);
-                    mesh.vCount      = swap16(mesh.vCount);
+					stream.read(mesh.vCount);
                 }
             }
 
             switch (version) {
-                case VER_TR1_SAT : {
-                    mesh.vertices = new Mesh::Vertex[mesh.vCount];
-                    for (int i = 0; i < mesh.vCount; i++) {
-                        short4 &c = mesh.vertices[i].coord;
-                        c.x = stream.readBE16();
-                        c.y = stream.readBE16();
-                        c.z = stream.readBE16();
-                    }
-                    int16 nCount = stream.readBE16();
-                    ASSERT(mesh.vCount == abs(nCount));
-                    for (int i = 0; i < mesh.vCount; i++) {
-                        short4 &c = mesh.vertices[i].coord;
-                        short4 &n = mesh.vertices[i].normal;
-                        if (nCount > 0) { // normal
-                            n.x = stream.readBE16();
-                            n.y = stream.readBE16();
-                            n.z = stream.readBE16();
-                            n.w = 1;
-                            c.w = 0x1FFF;
-                        } else { // intensity
-                            c.w = stream.readBE16();
-                            n = short4( 0, 0, 0, 0 );
-                        }
-                    }
-
-                    mesh.fCount = stream.readBE16();
-                    mesh.faces = new Face[mesh.fCount];
-                    mesh.tCount = mesh.rCount = 0;
-
-                    enum {
-                        TYPE_T_TEX_UNK        = 2,
-                        TYPE_T_COLOR          = 4,
-                        TYPE_T_TEX            = 8,
-                        TYPE_T_TEX_TRANSP     = 16,
-                        TYPE_R_COLOR          = 5,
-                        TYPE_R_TEX            = 9,
-                        TYPE_R_TRANSP         = 17,
-                        TYPE_R_FLIP_TEX       = 49,
-                        TYPE_R_FLIP_TRANSP    = 57,
-                    };
-
-                    TextureInfo   *textures;
-                    int           texturesCount;
-                    int           texturesBaseCount;
-
-                    if (itemTexturesCount && Entity::isInventoryItem(type)) {
-                        textures          = itemTextures;
-                        texturesCount     = itemTexturesCount;
-                        texturesBaseCount = itemTexturesBaseCount;
-                    } else {
-                        textures          = objectTextures;
-                        texturesCount     = objectTexturesCount;
-                        texturesBaseCount = objectTexturesBaseCount;
-                    }
-
-                    int fIndex = 0;
-                    uint16 typesCount = stream.readBE16();
-                    for (int j = 0; j < typesCount; j++) {
-                        uint16 type  = stream.readBE16();
-                        uint16 count = stream.readBE16();
-                        for (int k = 0; k < count; k++) {
-                            ASSERT(fIndex < mesh.fCount);
-                            Face &f = mesh.faces[fIndex++];
-                            switch (type) {
-                                case TYPE_T_COLOR      : f.colored = true;
-                                case TYPE_T_TEX_UNK    : 
-                                case TYPE_T_TEX        :
-                                case TYPE_T_TEX_TRANSP :
-                                    f.triangle    = true;
-                                    f.vertices[0] = (stream.readBE16() >> 5);
-                                    f.vertices[1] = (stream.readBE16() >> 5);
-                                    f.vertices[2] = (stream.readBE16() >> 5);
-                                    f.vertices[3] = 0;
-                                    f.flags.value = stream.readBE16();
-                                    ASSERT(f.vertices[0] < mesh.vCount && f.vertices[1] < mesh.vCount && f.vertices[2] < mesh.vCount);
-                                    mesh.tCount++;
-
-                                    if (!f.colored) {
-                                        union {
-                                            struct { uint16 texture:12, flip:4; };
-                                            uint16 value;
-                                        } tri;
-
-                                        tri.value = f.flags.value;
-                                        f.flags.value = tri.texture;
-                                        f.flip        = tri.flip;
-
-                                        if (textures == itemTextures)
-                                            f.flags.value = getItemTexureByIndex(f.flags.value);
-
-                                        f.flags.value += texturesBaseCount;
-
-                                        if (f.flip != 0 && f.flip != 2 && f.flip != 4 && f.flip != 6 && f.flip != 8 && f.flip != 10 && f.flip != 12 && f.flip != 14) {
-                                            // TODO puma flip 14 bug
-                                            ASSERT(false);
-                                            f.colored = true;
-                                            f.flags.value = 0x00FF;
-                                        }
-
-                                        if (f.flip == 6 || f.flip == 12) { // 3 bit
-                                            f.flags.value += texturesBaseCount + texturesBaseCount + texturesBaseCount;
-                                        }
-
-                                        if (f.flip == 4 || f.flip == 14) {
-                                            f.flags.value += texturesBaseCount + texturesBaseCount;
-                                        }
-
-                                        if (f.flip == 2 || f.flip == 8) {
-                                            f.flags.value += texturesBaseCount;
-                                        }
-                                    }
-
-                                    break;
-                                case TYPE_R_COLOR       : f.colored = true;
-                                case TYPE_R_FLIP_TEX    :
-                                case TYPE_R_FLIP_TRANSP : f.flip = 1;
-                                case TYPE_R_TEX         :
-                                case TYPE_R_TRANSP      :
-                                    f.vertices[0] = (stream.readBE16() >> 5);
-                                    f.vertices[1] = (stream.readBE16() >> 5);
-                                    f.vertices[2] = (stream.readBE16() >> 5);
-                                    f.vertices[3] = (stream.readBE16() >> 5);
-                                    f.flags.value = stream.readBE16();
-                                    ASSERT(f.vertices[0] < mesh.vCount && f.vertices[1] < mesh.vCount && f.vertices[2] < mesh.vCount && f.vertices[3] < mesh.vCount);
-                                    mesh.rCount++;
-
-                                    f.flip = (type == TYPE_R_FLIP_TEX || type == TYPE_R_FLIP_TRANSP);
-
-                                    if (!f.colored) {
-                                        ASSERT(f.flags.value % 16 == 0);
-                                        f.flags.value /= 16;
-
-                                        if (textures == itemTextures)
-                                            f.flags.value = getItemTexureByIndex(f.flags.value);
-                                    }
-
-                                    break;
-                                default :
-                                    LOG("! unknown face type: %d\n", type);
-                                    ASSERT(false);
-                            }
-
-                            ASSERT(f.colored || f.flags.value < texturesCount);
-
-                            if (type == TYPE_R_TRANSP || type == TYPE_R_FLIP_TRANSP || type == TYPE_T_TEX_TRANSP)
-                                textures[f.flags.texture].attribute = 1;
-
-                        }
-                    }
-                    ASSERT(fIndex == mesh.fCount);
-                    break;
-                }
                 case VER_TR1_PC :
                 case VER_TR2_PC :
                 case VER_TR3_PC : 
@@ -5777,7 +5903,7 @@ namespace TR {
                         stream.read(c.z);
                     }
                     int16 nCount;
-                    stream.read(nCount);
+					stream.read(nCount);
                     ASSERT(mesh.vCount == abs(nCount));
                     for (int i = 0; i < mesh.vCount; i++) {
                         short4 &c = mesh.vertices[i].coord;
@@ -5793,7 +5919,6 @@ namespace TR {
                             n = short4( 0, 0, 0, 0 );
                         }
                     }
-
                     uint16 rCount, tCount, crCount = 0, ctCount = 0;
 
                     int faceSize4 = FACE4_SIZE;
@@ -5804,22 +5929,25 @@ namespace TR {
                     }
 
                     int tmp = stream.pos;
-                    stream.seek(stream.read(rCount) * faceSize4); // uint32 colored (not existing in file)
-                    stream.seek(stream.read(tCount) * faceSize3);
+					stream.read(rCount);
+                    stream.seek(rCount * faceSize4); // uint32 colored (not existing in file)
+   					stream.read(tCount);
+					stream.seek(tCount * faceSize3);
                     if (!(version & (VER_TR4 | VER_TR5))) {
-                        stream.seek(stream.read(crCount) * faceSize4);
-                        stream.seek(stream.read(ctCount) * faceSize3);
+						stream.read(crCount);
+                        stream.seek(crCount * faceSize4);
+                        stream.read(ctCount);
+						stream.seek(ctCount * faceSize3);
                     }
                     stream.setPos(tmp);
-
                     mesh.rCount = rCount + crCount;
                     mesh.tCount = tCount + ctCount;
                     mesh.fCount = mesh.rCount + mesh.tCount;
                     mesh.faces  = mesh.fCount ? new Face[mesh.fCount] : NULL;
 
                     int idx = 0;
-                    stream.seek(sizeof(rCount));  for (int i = 0; i < rCount; i++)  readFace(stream, mesh.faces[idx++], false, false, false);
-                    stream.seek(sizeof(tCount));  for (int i = 0; i < tCount; i++)  readFace(stream, mesh.faces[idx++], false,  true, false);
+                    stream.seek(sizeof(rCount)); for (int i = 0; i < rCount; i++)  readFace(stream, mesh.faces[idx++], false, false, false);
+                    stream.seek(sizeof(tCount)); for (int i = 0; i < tCount; i++)  readFace(stream, mesh.faces[idx++], false,  true, false);
                     if (!(version & (VER_TR4 | VER_TR5))) {
                         stream.seek(sizeof(crCount)); for (int i = 0; i < crCount; i++) readFace(stream, mesh.faces[idx++],  true, false, false);
                         stream.seek(sizeof(ctCount)); for (int i = 0; i < ctCount; i++) readFace(stream, mesh.faces[idx++],  true,  true, false);
@@ -5980,8 +6108,10 @@ namespace TR {
 
                     break;
                 }
-                default : ASSERT(false);
-            }
+                default : {
+					ASSERT(false);
+				}
+			}
 
             #define RECALC_ZERO_NORMALS(mesh, face)\
                 int fn = -1;\
@@ -6003,13 +6133,11 @@ namespace TR {
                         fn = j;\
                     }\
                 }
-
         // recalc zero normals
             for (int i = 0; i < mesh.fCount; i++) {
                 Face &f = mesh.faces[i];
                 RECALC_ZERO_NORMALS(mesh, f);
             }
-
             #undef RECALC_ZERO_NORMALS
         }
 
@@ -6092,14 +6220,38 @@ namespace TR {
                 case VER_TR3_PC : {
                     struct {
                         uint16  attribute;
-                        uint16  tile:14, :2;
+						union {
+                        uint16  :2,tile:14;
+						uint16 value;
+						};
+						
                         uint8   xh0, x0, yh0, y0;
                         uint8   xh1, x1, yh1, y1;
                         uint8   xh2, x2, yh2, y2;
                         uint8   xh3, x3, yh3, y3;
                     } d;
 
+					stream_read16(d.attribute);
+					uint16_t tmptile;
+					stream_read16(tmptile);
+					d.tile = tmptile;
+					
+					stream.read(d.xh0);stream.read(d.x0);
+					stream.read(d.yh0);stream.read(d.y0);
+					stream.read(d.xh1);stream.read(d.x1);
+					stream.read(d.xh1);stream.read(d.y1);
+
+					stream.read(d.xh2);stream.read(d.x2);
+					stream.read(d.yh2);stream.read(d.y2);
+
+					stream.read(d.xh3);stream.read(d.x3);
+					stream.read(d.yh3);stream.read(d.y3);
+#if 0
                     stream.raw(&d, sizeof(d));
+					
+					d.attribute = swap16(d.attribute);
+					d.tile = swap16(d.tile);
+#endif					
                     SET_PARAMS(t, d, 0);
                     break;
                 }
@@ -6153,14 +6305,17 @@ namespace TR {
                     SET_PARAMS(t, d, d.clut);
                     break;
                 }
-                default : ASSERT(false);
-            }
+                default : {
+					ASSERT(false);
+				}
+			}
 
             #undef SET_PARAMS
         }
 
         void readObjectTex(Stream &stream) {
-            objectTextures = stream.read(objectTexturesCount) ? new TextureInfo[objectTexturesCount] : NULL;
+			stream_read32(objectTexturesCount);
+            objectTextures = objectTexturesCount ? new TextureInfo[objectTexturesCount] : NULL;
             for (int i = 0; i < objectTexturesCount; i++) {
                 readObjectTex(stream, objectTextures[i]);
             }
@@ -6213,8 +6368,27 @@ namespace TR {
                         uint16  w, h;
                         int16   l, t, r, b;
                     } d;
-                    stream.raw(&d, sizeof(d));
-                    SET_PARAMS(t, d, 0);
+  
+					stream_read16(d.tile);
+					stream.read(d.u);
+					stream.read(d.v);
+					stream_read16(d.w);
+					stream_read16(d.h);
+					stream_read16(d.l);
+					stream_read16(d.t);
+					stream_read16(d.r);
+					stream_read16(d.b);
+#if 0
+  stream.raw(&d, sizeof(d));
+					d.tile = swap16(d.tile);
+					d.w = swap16(d.w);
+					d.h = swap16(d.h);
+					d.l = swap16(d.l);
+					d.t = swap16(d.t);
+					d.r = swap16(d.r);
+					d.b = swap16(d.b);
+#endif
+					SET_PARAMS(t, d, 0);
                     t.texCoord[0] = t.texCoordAtlas[0] = short2( d.u,                       d.v                       );
                     t.texCoord[1] = t.texCoordAtlas[1] = short2( (uint8)(d.u + (d.w >> 8)), (uint8)(d.v + (d.h >> 8)) );
                     break;
@@ -6235,26 +6409,30 @@ namespace TR {
                     t.texCoord[1] = t.texCoordAtlas[1] = short2( d.u1, d.v1 );
                     break;
                 }
-                default : ASSERT(false);
-            }
+                default : {
+					ASSERT(false);
+				}
+			}
 
             #undef SET_PARAMS
         }
 
         void readSpriteTex(Stream &stream) {
-            spriteTextures = stream.read(spriteTexturesCount) ? new TextureInfo[spriteTexturesCount] : NULL;
+            stream_read32(spriteTexturesCount);
+			spriteTextures = spriteTexturesCount ? new TextureInfo[spriteTexturesCount] : NULL;
             for (int i = 0; i < spriteTexturesCount; i++)
                 readSpriteTex(stream, spriteTextures[i]);
 
-            spriteSequences = stream.read(spriteSequencesCount) ? new SpriteSequence[spriteSequencesCount] : NULL;
+            stream_read32(spriteSequencesCount);
+            spriteSequences = spriteSequencesCount ? new SpriteSequence[spriteSequencesCount] : NULL;
             for (int i = 0; i < spriteSequencesCount; i++) {
                 SpriteSequence &s = spriteSequences[i];
                 uint16 type;
-                stream.read(type);
+                stream_read16(type);
                 s.type = Entity::remap(version, Entity::Type(type));
-                stream.read(s.unused);
-                stream.read(s.sCount);
-                stream.read(s.sStart);
+                stream_read16(s.unused);
+                stream_read16(s.sCount);
+                stream_read16(s.sStart);
                 s.sCount = -s.sCount;
                 s.transp = 1;
             }
@@ -6281,12 +6459,12 @@ namespace TR {
 
         void readAnimTex(Stream &stream) {
             uint32 animTexBlockSize;
-            stream.read(animTexBlockSize);
+            stream_read32(animTexBlockSize);
             
             if (animTexBlockSize) {
                 uint16 *animTexBlock = new uint16[animTexBlockSize];
                 for (uint32 i = 0; i < animTexBlockSize; i++) {
-                    animTexBlock[i] = stream.readLE16();
+                    stream_read16(animTexBlock[i]);// = stream.readLE16();
                 }
 
                 uint16 *ptr = animTexBlock;
@@ -6311,25 +6489,27 @@ namespace TR {
         }
 
         void readEntities(Stream &stream) {
-            entitiesCount = stream.read(entitiesBaseCount) + MAX_RESERVED_ENTITIES;
+			stream_read32(entitiesBaseCount);
+			entitiesCount = entitiesBaseCount + MAX_RESERVED_ENTITIES;
             entities = new Entity[entitiesCount];
             for (int i = 0; i < entitiesBaseCount; i++) {
                 Entity &e = entities[i];
                 uint16 type;
-                e.type = Entity::Type(stream.read(type));
-                stream.read(e.room);
-                stream.read(e.x);
-                stream.read(e.y);
-                stream.read(e.z);
-                stream.read(e.rotation.value);
-                stream.read(e.intensity);
+				stream_read16(type);
+                e.type = Entity::Type(type);
+                stream_read16(e.room);
+                stream_read32(e.x);
+                stream_read32(e.y);
+                stream_read32(e.z);
+                stream_read16(e.rotation.value);
+                stream_read16(e.intensity);
                 if (version & (VER_TR2 | VER_TR3)) {
                     stream.read(e.intensity2);
                 }
                 if (version & (VER_TR4 | VER_TR5)) {
                     stream.read(e.OCB);
                 }
-                stream.read(e.flags.value);
+                stream_read16(e.flags.value);
             }
         }
 

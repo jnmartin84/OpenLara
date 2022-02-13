@@ -3,6 +3,20 @@
 
 #include "core.h"
 #include "format.h"
+#define stream_read16(x) { \
+	stream.read((x));\
+	(x) = swap16((x));\
+}
+#define stream_read32(x) { \
+	stream.read((x));\
+	(x) = swap32((x));\
+}
+extern "C" {
+extern void __n64_memcpy_ASM(void* d, const void* s, size_t c);
+extern void __n64_memset_ASM(void* d, char s, size_t c);
+#define memcpy __n64_memcpy_ASM
+#define memset __n64_memset_ASM
+}
 
 struct Texture : GAPI::Texture {
 
@@ -239,7 +253,29 @@ struct Texture : GAPI::Texture {
             uint8  other[48 + 64];
         } pcx;
 
-        stream.raw(&pcx, sizeof(PCX));
+		
+//        stream.raw(&pcx, sizeof(PCX));
+		stream.read(pcx.magic);
+		stream.read(pcx.version);
+		stream.read(pcx.compression);
+		stream.read(pcx.bpp);
+		for (int ir=0;ir<4;ir++) {
+			if(stream.fd > -1) {
+				stream_read16(pcx.rect[ir]);
+			}
+			else {
+				stream.read(pcx.rect[ir]);
+			}
+		}
+		if(stream.fd > -1) {
+			stream_read16(pcx.width);
+			stream_read16(pcx.height);
+		}
+		else {
+			stream.read(pcx.width);
+			stream.read(pcx.height);
+		}
+		stream.seek(48+64);
 
         ASSERT(pcx.bpp == 8);
         ASSERT(pcx.compression == 1);
@@ -266,8 +302,13 @@ struct Texture : GAPI::Texture {
         ASSERT(flag == 0x0C);
 
         Color24 palette[256];
-        stream.raw(palette, sizeof(palette));
-
+        //stream.raw(palette, sizeof(palette));
+		for (i = 0; i < 256; i++) {
+			stream.read(palette[i].r); 
+			stream.read(palette[i].g); 
+			stream.read(palette[i].b); 
+		}
+		
         Color32 *data = new Color32[pcx.width * pcx.height];
         Color32 *dst = data;
         uint8   *src = indices;
@@ -292,12 +333,33 @@ struct Texture : GAPI::Texture {
         int32  offset, size;
         uint16 bpp;
         stream.seek(10);
-        stream.read(offset);
+		if(stream.fd > -1) {
+			stream_read32(offset);
+		}
+		else {
+		stream.read(offset);
+		}
         stream.seek(4);
-        stream.read(width);
-        stream.read(height);
+		if(stream.fd > -1) {
+			stream_read32(width);
+		}
+		else {
+		stream.read(width);
+		}
+		if(stream.fd > -1) {
+			stream_read32(height);
+		}
+		else {
+		stream.read(height);
+		}
         stream.seek(2);
-        stream.read(bpp);
+		if(stream.fd > -1) {
+			stream_read16(bpp);
+		}
+		else {
+			stream.read(bpp);
+		}
+
         stream.seek(8);
         stream.seek(offset - stream.pos);
 
@@ -403,11 +465,11 @@ struct Texture : GAPI::Texture {
     // read chunks
         while (stream.pos < stream.size) {
             uint32 chunkSize, chunkName;
-            chunkSize = swap32(stream.read(chunkSize));
+            chunkSize = /*swap32(*/stream.read(chunkSize)/*)*/;
             stream.read(chunkName);
             if (chunkName == FOURCC("IHDR")) { // Image Header
-                width  = swap32(stream.read(width));
-                height = swap32(stream.read(height));
+                width  = /*swap32*/(stream.read(width));
+                height = /*swap32*/(stream.read(height));
                 stream.read(bits);
                 stream.read(colorType);
                 stream.seek(2);
@@ -554,11 +616,17 @@ struct Texture : GAPI::Texture {
 
     static uint8* LoadRNC(Stream &stream, uint32 &width, uint32 &height) { // https://github.com/lab313ru/rnc_propack_source
         uint32 magic, size, csize;
-        stream.read(magic);
+        //stream.read(magic);
+		if(stream.fd > -1) {
+			stream_read32(magic);
+		}
+		else {
+		stream.read(magic);
+		}
 
         if (magic == FOURCC("RNC\002")) {
-            size  = swap32(stream.read(size));
-            csize = swap32(stream.read(csize));
+            size  = /*swap32*/(stream.read(size));
+            csize = /*swap32*/(stream.read(csize));
             stream.seek(6);
         } else {
             stream.seek(-4);
@@ -663,7 +731,7 @@ struct Texture : GAPI::Texture {
         uint16 *end = src + width * height;
 
         while (src < end) {
-            uint16 c = swap16(*src++);
+            uint16 c = /*swap16*/(*src++);
             *dst++ = ((c & 0x001F) << 3) | ((c & 0x03E0) << 6) | (((c & 0x7C00) << 9)) | 0xFF000000;
         }
 
@@ -674,9 +742,14 @@ struct Texture : GAPI::Texture {
 
     static uint8* LoadDATA(Stream &stream, uint32 &width, uint32 &height) {
         uint32 magic;
-        stream.read(magic);
+		if(stream.fd > -1) {
+			stream_read32(magic);
+		}
+		else {
+			stream.read(magic);
+		}
         stream.seek(-4);
-
+		
         #ifdef USE_INFLATE
             if (magic == 0x474E5089)
                 return LoadPNG(stream, width, height);

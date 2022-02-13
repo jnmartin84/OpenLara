@@ -102,7 +102,7 @@ struct Level : IGame {
         id = (level.isEnd() || level.isHome()) ? level.getTitleId() : TR::LevelID(level.id + 1);
 
         TR::isGameEnded = level.isEnd();
-
+#if 0
         if (!level.isTitle() && loadSlot == -1) {
         // update statistics info for current level
             if (!TR::isCutsceneLevel(level.id) && !level.isHome())
@@ -114,6 +114,7 @@ struct Level : IGame {
                 showStats = true;
             }
         }
+#endif
         loadLevel(id);
     }
 
@@ -287,7 +288,8 @@ struct Level : IGame {
     }
 
     virtual void saveGame(TR::LevelID id, bool checkpoint, bool updateStats) {
-        ASSERT(saveResult != SAVE_RESULT_WAIT);
+#if 0      
+	  ASSERT(saveResult != SAVE_RESULT_WAIT);
 
         if (saveResult == SAVE_RESULT_WAIT)
             return;
@@ -321,7 +323,8 @@ struct Level : IGame {
             uint8 *data = writeSaveSlots(size);
             osWriteSlot(new Stream(SAVE_FILENAME, (const char*)data, size, saveGameWriteAsync, this));
         }
-    }
+#endif
+		}
 
     virtual void loadGame(int slot) {
         LOG("Load Game...\n");
@@ -399,7 +402,7 @@ struct Level : IGame {
 
         Core::setVSync(Core::settings.detail.vsync != 0);
 
-        Stream::cacheWrite("settings", (char*)&settings, sizeof(settings));
+//        Stream::cacheWrite("settings", (char*)&settings, sizeof(settings));
 
         if (rebuildShaders) {
         #if !defined(_GAPI_D3D8) && !defined(_GAPI_D3D9) && !defined(_GAPI_D3D11) && !defined(_GAPI_GXM)
@@ -822,7 +825,7 @@ struct Level : IGame {
     }
 
     virtual Sound::Sample* playSound(int id, const vec3 &pos = vec3(0.0f), int flags = 0) const {
-        if (level.version == TR::VER_TR1_PSX && id == TR::SND_SECRET)
+/*        if (level.version == TR::VER_TR1_PSX && id == TR::SND_SECRET)
             return NULL;
 
         if (!level.soundsInfo) return NULL;
@@ -850,7 +853,7 @@ struct Level : IGame {
             if (b.flags.gain) volume = max(0.0f, volume - randf() * 0.25f);
             //if (b.flags.camera) flags &= ~Sound::PAN;
             return Sound::play(level.getSampleStream(index), &pos, volume, pitch, flags, id);
-        }
+        }*/
         return NULL;
     }
 
@@ -895,7 +898,7 @@ struct Level : IGame {
 
     virtual void playTrack(uint8 track, bool background = false) {
         if (background) {
-            TR::getGameTrack(level.version, track, playAsyncBG, new TrackRequest(this, Sound::MUSIC));
+            //TR::getGameTrack(level.version, track, playAsyncBG, new TrackRequest(this, Sound::MUSIC));
             return;
         }
 
@@ -926,9 +929,9 @@ struct Level : IGame {
             flags |= Sound::LOOP;
 
         waitTrack = true;
-        TR::getGameTrack(level.version, track, playAsync, new TrackRequest(this, flags));
+        //TR::getGameTrack(level.version, track, playAsync, new TrackRequest(this, flags));
 
-        UI::showSubs(TR::getSubs(level.version, track));
+        //UI::showSubs(TR::getSubs(level.version, track));
     }
 
     virtual void stopTrack() {
@@ -941,7 +944,6 @@ struct Level : IGame {
 
         level.simpleItems = Core::settings.detail.simple == 1;
         level.initModelIndices();
-
     #ifdef _GAPI_GU
         GAPI::freeEDRAM();
     #endif
@@ -968,7 +970,7 @@ struct Level : IGame {
 
         initTextures();
         mesh = new MeshBuilder(&level, atlasRooms);
-        initEntities();
+		initEntities();
 
         shadow[0] = shadow[1] = NULL;
         scaleTex     = NULL;
@@ -988,8 +990,8 @@ struct Level : IGame {
             camera = player->camera;
 
             zoneCache    = new ZoneCache(this);
-            ambientCache = Core::settings.detail.lighting > Core::Settings::MEDIUM ? new AmbientCache(this) : NULL;
-            waterCache   = Core::settings.detail.water    > Core::Settings::LOW    ? new WaterCache(this)   : NULL;
+            ambientCache = NULL;//Core::settings.detail.lighting > Core::Settings::MEDIUM ? new AmbientCache(this) : NULL;
+            waterCache   = NULL;//Core::settings.detail.water    > Core::Settings::LOW    ? new WaterCache(this)   : NULL;
 
             if (ambientCache) { // at first calculate ambient cube for Lara
                 AmbientCache::Cube cube;
@@ -1001,7 +1003,7 @@ struct Level : IGame {
                 int flags = Sound::PAN;
                 if (src.flags & 64)  flags |= Sound::FLIPPED;
                 if (src.flags & 128) flags |= Sound::UNFLIPPED;
-                playSound(src.id, vec3(float(src.x), float(src.y), float(src.z)), flags);
+                //playSound(src.id, vec3(float(src.x), float(src.y), float(src.z)), flags);
             }
 
         }
@@ -1018,7 +1020,8 @@ struct Level : IGame {
         }
         */
 
-    #if DUMP_SAMPLES
+    #if 0
+	//DUMP_SAMPLES
         for (int i = 0; i < 256; i++) {
             int16 a = level.soundsMap[i];
             if (a == -1) continue;
@@ -1034,26 +1037,30 @@ struct Level : IGame {
         loadNextLevel();
     #endif
 
-    #if DUMP_PALETTE
+    #if 0
+	//DUMP_PALETTE
         Debug::Level::dumpPalette(&level, level.id);
         loadNextLevel();
     #endif
 
-        saveResult = SAVE_RESULT_SUCCESS;
-        if (loadSlot != -1 && saveSlots[loadSlot].getLevelID() == level.id) {
-            parseSaveSlot(saveSlots[loadSlot]);
-            loadSlot = -1;
-        }
+		loadSlot = -1;
+//        saveResult = SAVE_RESULT_SUCCESS;
+//        if (loadSlot != -1 && saveSlots[loadSlot].getLevelID() == level.id) {
+//            parseSaveSlot(saveSlots[loadSlot]);
+//            loadSlot = -1;
+ //       }
 
-        Network::start(this);
+        //Network::start(this);
 
         Core::resetTime();
     }
 
     virtual ~Level() {
-        UI::init(NULL);
+       
+	printf("deleted level, should be clearing EVERYTHING\n");
+ UI::init(NULL);
 
-        Network::stop();
+        //Network::stop();
 
         for (int i = 0; i < level.entitiesCount; i++)
             delete (Controller*)level.entities[i].controller;
@@ -1323,21 +1330,6 @@ struct Level : IGame {
     uint8 *glyphsCN;
 
     static int getAdvGlyphPage(int index) {
-        index -= UI::advGlyphsStart;
-        if (index >= RU_GLYPH_COUNT) {
-            index -= RU_GLYPH_COUNT;
-            if (index >= JA_GLYPH_COUNT) {
-                index -= JA_GLYPH_COUNT;
-                if (index >= GR_GLYPH_COUNT) {
-                    index -= GR_GLYPH_COUNT;
-                    return 4 + index / 256; // CN
-                } else {
-                    return 3; // GR
-                }
-            } else {
-                return 1 + index / 256; // JA
-            }
-        }
         return 0; // RU
     }
 
@@ -1587,6 +1579,8 @@ struct Level : IGame {
     }
 #endif
 
+
+
     void initTextures() {
     #ifndef SPLIT_BY_TILE
 
@@ -1827,7 +1821,6 @@ struct Level : IGame {
         #endif
     #endif
     }
-
     void initReflections() {
         for (int i = 0; i < level.entitiesBaseCount; i++) {
             TR::Entity &e = level.entities[i];
@@ -2002,14 +1995,14 @@ struct Level : IGame {
             case 2 : Core::setBlendMode(bmAdd);   Core::setDepthWrite(false); break;
         }
 
-        int i     = 0;
-        int end   = roomsCount;
-        int dir   = 1;
+        int i     = 0;//roomsCount-1;//0;
+        int end   = roomsCount;//-1;////0;//roomsCount;
+        int dir   = 1;//-1;//1;
 
         if (transp) {
-            i   = roomsCount - 1;
-            end = -1;
-            dir = -1;
+            i   = roomsCount-1;//0;////roomsCount - 1;
+            end = -1;//roomsCount;//-1;
+            dir = -1;//1;//-1;
         }
 
         atlasRooms->bind(sDiffuse);
@@ -2040,6 +2033,7 @@ struct Level : IGame {
             Core::mModel.setPos(basis.pos);
 
             mesh->transparent = transp;
+//	hfx_clear(GAPI::state, HFX_DEPTH_BUFFER_BIT);
             mesh->renderRoomGeometry(roomIndex);
 
             i += dir;
@@ -2057,7 +2051,7 @@ struct Level : IGame {
             #else
                 basis.rot = quat(0, 0, 0, 1);
             #endif
-
+#if 0
             for (int i = 0; i < roomsCount; i++) {
                 int roomIndex = roomsList[i].index;
                 level.rooms[roomIndex].flags.visible = true;
@@ -2076,12 +2070,13 @@ struct Level : IGame {
 
                 mesh->renderRoomSprites(roomIndex);
             }
-        }
+#endif 
+		}
 
         Core::setScissor(vp);
         Core::setBlendMode(bmNone);
     }
-
+//znear = 32, zfar = 45*1024
     void renderEntity(const TR::Entity &entity) {
         //if (entity.room != lara->getRoomIndex()) return;
         if (Core::pass == Core::passShadow && !entity.castShadow()) return;
@@ -2150,8 +2145,14 @@ struct Level : IGame {
                 Core::active.shader->setParam(uAmbient, controller->ambient[0], 6);
             }
         }
-
+//if(entity.isLara()) {
+//	hfx_disable(GAPI::state, HFX_DEPTH_TEST);
+//}
         controller->render(camera->frustum, mesh, type, room.flags.water);
+//if(entity.isLara()) {
+//	hfx_enable(GAPI::state, HFX_DEPTH_TEST);
+//}
+//hfx_set_mode(GAPI::state);
     }
 
     void loadNextLevelData() {
@@ -2304,9 +2305,9 @@ struct Level : IGame {
         // underwater ambient sound volume control
             if (camera->isUnderwater()) {
                 if (!sndWater && !level.isCutsceneLevel()) {
-                    sndWater = playSound(TR::SND_UNDERWATER, vec3(0.0f), Sound::LOOP | Sound::MUSIC);
-                    if (sndWater)
-                        sndWater->volume = sndWater->volumeTarget = 0.0f;
+                    //sndWater = playSound(TR::SND_UNDERWATER, vec3(0.0f), Sound::LOOP | Sound::MUSIC);
+                    //if (sndWater)
+                     //   sndWater->volume = sndWater->volumeTarget = 0.0f;
                 }
                 volWater = 1.0f;
             } else {
@@ -2396,7 +2397,7 @@ struct Level : IGame {
 
         atlasObjects->bind(sDiffuse);
         for (int i = 0; i < level.entitiesCount; i++) {
-            TR::Entity &e = level.entities[i];
+            TR::Entity &e = level.entities[level.entitiesCount-1-i];
             if (!e.controller || e.modelIndex == 0) continue;
             renderEntity(e);
         }
@@ -2548,7 +2549,8 @@ struct Level : IGame {
     }
 
     virtual void getVisibleRooms(RoomDesc *roomsList, int &roomsCount, int from, int to, const vec4 &viewPort, bool water, int count = 0) {
-        if (roomsCount >= 255 || count > 16) {
+//static int called = 0;
+	if (roomsCount >= 255 || count > 16) {
             //ASSERT(false);
             return;
         }
@@ -2560,7 +2562,8 @@ struct Level : IGame {
 
         room.flags.visible = true;
         roomsList[roomsCount++] = RoomDesc(to, viewPort);
-
+//if(called == 0) {
+	//called++;
         vec4 clipPort;
         for (int i = 0; i < room.portalsCount; i++) {
             TR::Room::Portal &p = room.portals[i];
@@ -2568,9 +2571,15 @@ struct Level : IGame {
             if (Core::pass == Core::passCompose && water && waterCache && (level.rooms[to].flags.water ^ level.rooms[p.roomIndex].flags.water))
                 waterCache->setVisible(to, p.roomIndex);
 
-            if (from != room.portals[i].roomIndex && checkPortal(room, p, viewPort, clipPort))
+            if (from != room.portals[i].roomIndex && checkPortal(room, p, viewPort, clipPort)) {
                 getVisibleRooms(roomsList, roomsCount, to, p.roomIndex, clipPort, water, count + 1);
-        }
+				//break;
+			}
+		}
+//}
+//else {
+//	called = 0;
+//}
     }
 
     void renderOpaque(RoomDesc *roomsList, int roomsCount) {

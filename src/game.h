@@ -63,13 +63,15 @@ namespace Game {
             id = level->level.id;
 
         Input::stopJoyVibration();
-
-        bool playVideo = true;
-        if (loadSlot != -1)
-            playVideo = !saveSlots[loadSlot].isCheckpoint();
-
+loadSlot = -1;
+        bool playVideo = false;
+//        if (loadSlot != -1)
+//            playVideo = !saveSlots[loadSlot].isCheckpoint();
+//		printf("free memory before delete level %d\n", heap_top - heap_end);
         delete level;
-        level = new Level(*lvl);
+//		printf("free memory after delete level %d\n", heap_top - heap_end);
+
+		level = new Level(*lvl);
 
         bool playLogo = level->level.isTitle() && id == TR::LVL_MAX;
         playVideo = playVideo && (id != level->level.id);
@@ -123,7 +125,7 @@ void loadSettings(Stream *stream, void *userData) {
 }
 
 static void readSlotAsync(Stream *stream, void *userData) {
-    if (!stream) {
+/*    if (!stream) {
         saveResult = SAVE_RESULT_ERROR;
         return;
     }
@@ -131,11 +133,11 @@ static void readSlotAsync(Stream *stream, void *userData) {
     readSaveSlots(stream);
     delete stream;
 
-    saveResult = SAVE_RESULT_SUCCESS;
+    saveResult = SAVE_RESULT_SUCCESS;*/
 }
 
 void readSlots() {
-    ASSERT(saveResult != SAVE_RESULT_WAIT);
+/*    ASSERT(saveResult != SAVE_RESULT_WAIT);
 
     if (saveResult == SAVE_RESULT_WAIT)
         return;
@@ -143,7 +145,7 @@ void readSlots() {
     LOG("Read Slots...\n");
     saveResult = SAVE_RESULT_WAIT;
 
-    osReadSlot(new Stream(SAVE_FILENAME, NULL, 0, readSlotAsync, NULL));
+    osReadSlot(new Stream(SAVE_FILENAME, NULL, 0, readSlotAsync, NULL));*/
 }
 
 namespace Game {
@@ -154,8 +156,11 @@ namespace Game {
 
     void init(Stream *lvl) {
         loadSlot    = -1;
-        nextLevel   = NULL;
+        if(nextLevel) delete nextLevel;
+	nextLevel   = NULL;
+	if(shaderCache) delete shaderCache;
         shaderCache = NULL;
+	if(level) delete level;
         level       = NULL;
 
         memset(cheatSeq, 0, sizeof(cheatSeq));
@@ -208,7 +213,7 @@ namespace Game {
 
     void updateTick() {
         Input::update();
-        Network::update();
+        //Network::update();
 
         for (int32 i = 0; i < MAX_PLAYERS; i++)
         {
@@ -273,8 +278,10 @@ namespace Game {
 
         PROFILE_MARKER("UPDATE");
 
-        if (!Core::update())
-            return false;
+        if (!Core::update()) {
+            //printf("no core update\n");
+			return false;
+		}
 
         float delta = Core::deltaTime;
 
@@ -316,13 +323,14 @@ namespace Game {
             delta = min(0.2f, delta);
 
         while (delta > EPS) {
+			//printf("delta eps loop\n");
             Core::deltaTime = min(delta, 1.0f / 30.0f);
             Game::updateTick();
             delta -= Core::deltaTime;
             if (Core::resetState) // resetTime was called
                 break;
         }
-
+//printf("and we done\n");
         return true;
     }
 

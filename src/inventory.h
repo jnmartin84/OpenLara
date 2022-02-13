@@ -570,7 +570,7 @@ struct Inventory {
     static void loadTitleBG(Stream *stream, void *userData) {
         Inventory *inv = (Inventory*)userData;
 
-        if (!inv->video)
+//        if (!inv->video)
             inv->skipVideo(); // play background track etc.
 
         if (!stream) {
@@ -596,11 +596,11 @@ struct Inventory {
 
     static void loadLogo(Stream *stream, void *userData) {
         Inventory *inv = (Inventory*)userData;
-        if (stream) {
-            inv->video = new Video(stream, TR::LVL_CUSTOM);
-        } else {
+//        if (stream) {
+  //          inv->video = new Video(stream, TR::LVL_CUSTOM);
+    //    } else {
             inv->skipVideo();
-        }
+      //  }
     }
 
     Inventory() : game(NULL), title(NULL), itemsCount(0) {
@@ -718,17 +718,17 @@ struct Inventory {
         active    = false;
         phaseRing = 0.0f;
 
-        this->playLogo  = playLogo;
-        this->playVideo = playVideo;
+        this->playLogo  = false;//playLogo;
+        this->playVideo = false;//playVideo;
 
-        if (playLogo) {
+/*        if (playLogo) {
             new Stream(TR::getGameLogo(game->getLevel()->version), loadLogo, this);
             return;
-        }
+       }
 
         if (playVideo)
             startVideo();
-        else 
+        else */
             new Stream(TR::getGameScreen(game->getLevel()->id), loadTitleBG, this);
     }
 
@@ -1032,10 +1032,10 @@ struct Inventory {
                         if (level->isTitle()) { // start new game
                             nextLevel = level->getStartId();
                         } else { // restart level
-                            int slot = getSaveSlot(id, false);
-                            if (slot > -1)
-                                game->loadGame(slot);
-                            else
+                   //         int slot = getSaveSlot(id, false);
+                   //         if (slot > -1)
+                   //             game->loadGame(slot);
+                   //         else
                                 nextLevel = id; 
                             toggle();
                         }
@@ -1959,7 +1959,8 @@ struct Inventory {
     }
 
     void render(float aspect) {
-        if (video) {
+        if (video)
+			{
             Core::setDepthTest(false);
             video->render();
 
